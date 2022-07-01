@@ -9,7 +9,7 @@ with Card             |  without Card
    Add this to your pubspec.yaml:
 
     dependencies:
-        loading_icon_button: ^0.0.2
+        loading_icon_button: ^0.0.3
 ## Usage
 ### Import
     import 'package:loading_icon_button/loading_icon_button.dart';
