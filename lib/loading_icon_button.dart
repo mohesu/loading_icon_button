@@ -132,10 +132,10 @@ class LoadingButton extends StatefulWidget {
   }
 
   @override
-  _LoadingButtonState createState() => _LoadingButtonState();
+  LoadingButtonState createState() => LoadingButtonState();
 }
 
-class _LoadingButtonState extends State<LoadingButton>
+class LoadingButtonState extends State<LoadingButton>
     with TickerProviderStateMixin {
   late AnimationController _buttonController;
   late AnimationController _borderController;
@@ -212,7 +212,7 @@ class _LoadingButtonState extends State<LoadingButton>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    var _check = Container(
+    Widget check = Container(
       alignment: FractionalOffset.center,
       decoration: BoxDecoration(
         color: _state.value == ButtonState.idle
@@ -238,7 +238,7 @@ class _LoadingButtonState extends State<LoadingButton>
           : null,
     );
 
-    var _cross = Container(
+    Widget cross = Container(
       alignment: FractionalOffset.center,
       decoration: BoxDecoration(
         color: _state.value == ButtonState.idle
@@ -264,7 +264,7 @@ class _LoadingButtonState extends State<LoadingButton>
           : null,
     );
 
-    var _loader = SizedBox(
+    Widget loader = SizedBox(
       width: widget.loaderSize,
       height: widget.loaderSize,
       child: Container(
@@ -302,13 +302,13 @@ class _LoadingButtonState extends State<LoadingButton>
       ),
     );
 
-    var childStream = StreamBuilder(
+    Widget streamChild = StreamBuilder(
       stream: _state,
       builder: (context, snapshot) {
         return AnimatedSwitcher(
           duration: const Duration(milliseconds: 200),
           child: snapshot.data == ButtonState.loading
-              ? _loader
+              ? loader
               : Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -328,7 +328,7 @@ class _LoadingButtonState extends State<LoadingButton>
       },
     );
 
-    final _btn = ButtonTheme(
+    Widget btn = ButtonTheme(
       shape: RoundedRectangleBorder(borderRadius: _borderAnimation.value),
       disabledColor: widget.disabledColor,
       padding: const EdgeInsets.all(0),
@@ -353,7 +353,7 @@ class _LoadingButtonState extends State<LoadingButton>
           padding: const EdgeInsets.all(0),
         ),
         onPressed: widget.onPressed == null ? null : _btnPressed,
-        child: childStream,
+        child: streamChild,
       ),
     );
 
@@ -362,10 +362,10 @@ class _LoadingButtonState extends State<LoadingButton>
       width: widget.width,
       child: Center(
         child: _state.value == ButtonState.error
-            ? _cross
+            ? cross
             : _state.value == ButtonState.success
-                ? _check
-                : _btn,
+                ? check
+                : btn,
       ),
     );
   }
@@ -452,7 +452,7 @@ class LoadingButtonController {
     _stopListener();
   }
 
-  /// Notify listeners to start the sucess animation
+  /// Notify listeners to start the success animation
   void success() {
     _successListener();
   }

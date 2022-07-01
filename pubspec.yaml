@@ -1,6 +1,6 @@
 name: loading_icon_button
-description: Loading icon button implementation of loading button
-version: 0.0.1
+description: Loading button with icon and text in Flutter. It's working on all flutter platforms. It's a simple way to show a loading button.
+version: 0.0.2
 homepage: https://github.com/rvndsngwn/loading_icon_button.git
 
 environment:
@@ -15,6 +15,7 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^1.0.4
+  flutter_lints: ^2.0.1
+  lints: ^2.0.0
 
 flutter:

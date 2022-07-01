@@ -9,45 +9,31 @@ with Card             |  without Card
    Add this to your pubspec.yaml:
 
     dependencies:
-        loading_icon_button: ^0.0.1
+        loading_icon_button: ^0.0.2
 ## Usage
 ### Import
     import 'package:loading_icon_button/loading_icon_button.dart';
 
 ### Simple Implementation
+```dart
+ final LoadingButtonController _btnController = LoadingButtonController();
 
-        final LoadingButtonController _btnController = LoadingButtonController();
+  void buttonPressed() async {
+    Future.delayed(const Duration(seconds: 1), () {
+      _btnController.success();
+      Future.delayed(const Duration(seconds: 1), () {
+        _btnController.reset();
+      });
+    });
+  }
 
-        void buttonPressed() async {
-          Future.delayed(const Duration(seconds: 1), () {
-                    _btnController.error();
-                    Future.delayed(const Duration(seconds: 1), () {
-                      _btnController.reset();
-                    });
-                  });
-        }
-
-        LoadingButton(
-                  color: const Color(0xff0066ff),
-                  iconColor: Colors.white,
-                  valueColor: const Color(0xff0066ff),
-                  errorColor: const Color(0xffe0333c),
-                  successColor: const Color(0xff58B09C),
-                  child: Text(
-                    'Login with Google',
-                    style: GoogleFonts.openSans().copyWith(
-                      fontWeight: FontWeight.w500,
-                      color: Colors.white,
-                    ),
-                  ),
-                  iconData: PhosphorIcons.googleLogo,
-                  onPressed: () {
-                    buttonPressed();
-                  },
-                  successIcon: PhosphorIcons.check,
-                  controller: _btnController,
-                ),
-
+  LoadingButton(
+    child: const Text('Login with Apple'),
+    iconData: PhosphorIcons.appleLogo,
+    onPressed: () => buttonPressed(),
+    controller: _btnController,
+  );
+```
 
 Properties of IconLoadingButton:
 
