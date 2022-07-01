@@ -1,7 +1,7 @@
-name: icon_loading_button
-description: Icon loading button implementation of Rounded loading button
-version: 1.0.0
-homepage: https://github.com/AsimBhadra/icon_loading_button
+name: loading_icon_button
+description: Loading icon button implementation of loading button
+version: 0.0.1
+homepage: https://github.com/rvndsngwn/loading_icon_button.git
 
 environment:
   sdk: ">=2.15.1 <3.0.0"

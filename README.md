@@ -1,38 +1,33 @@
-## icon loading button
+## loading icon button
 
-IconLoadingButton is a Flutter package heavily inspired by ```rounded_loading_button``` with design changes and inclusion of icons.
-
-https://pub.dev/packages/rounded_loading_button
-
-Light mode             |  Dark mode
+with Card             |  without Card
 :-------------------------:|:-------------------------:
-![](screenshots/light-mode.gif)  |  ![](screenshots/dark-mode.gif)
+![](screenshots/gif1.gif)  |  ![](screenshots/gif2.gif)
 
 ## Installation
 
    Add this to your pubspec.yaml:
 
     dependencies:
-        icon_loading_button: ^1.0.0
+        loading_icon_button: ^0.0.1
 ## Usage
 ### Import
-    import 'package:rounded_loading_button/rounded_loading_button.dart';
+    import 'package:loading_icon_button/loading_icon_button.dart';
 
 ### Simple Implementation
 
-        final IconButtonController _btnController1 = IconButtonController();
-        final IconButtonController _btnController2 = IconButtonController();
+        final LoadingButtonController _btnController = LoadingButtonController();
 
         void buttonPressed() async {
           Future.delayed(const Duration(seconds: 1), () {
-                    _btnController2.error();
+                    _btnController.error();
                     Future.delayed(const Duration(seconds: 1), () {
-                      _btnController2.reset();
+                      _btnController.reset();
                     });
                   });
         }
 
-        IconLoadingButton(
+        LoadingButton(
                   color: const Color(0xff0066ff),
                   iconColor: Colors.white,
                   valueColor: const Color(0xff0066ff),
@@ -50,7 +45,7 @@ Light mode             |  Dark mode
                     buttonPressed();
                   },
                   successIcon: PhosphorIcons.check,
-                  controller: _btnController2,
+                  controller: _btnController,
                 ),
 
 
@@ -65,7 +60,16 @@ Properties of IconLoadingButton:
 * `successIcon` - The icon for the success state
 * `failedIcon` - The icon for the failed state
 * `iconColor` - The icon color for the button
+* `showBox` - The visibility of the box(Card)
 
 
 ## Contributions
 All contributions are welcome!
+
+## Thanks to
+
+RoundedLoadingButton  ```rounded_loading_button``` 
+https://pub.dev/packages/rounded_loading_button
+
+IconLoadingButton  ```icon_loading_button``` 
+https://pub.dev/packages/icon_loading_button

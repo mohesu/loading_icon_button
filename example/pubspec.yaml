@@ -38,7 +38,7 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  icon_loading_button:
+  loading_icon_button:
     path: ../
   phosphor_flutter: ^1.4.0
   google_fonts: ^2.2.0

@@ -1,59 +1,64 @@
-library icon_loading_button;
+library loading_icon_button;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:rxdart/rxdart.dart';
 
 enum ButtonState { idle, loading, success, error }
 
-class IconLoadingButton extends StatefulWidget {
-  /// Constructor
-  const IconLoadingButton({
+class LoadingButton extends StatefulWidget {
+  /// Constructor for the LoadingButton widget.
+  LoadingButton({
     Key? key,
-    this.color = Colors.blue,
     this.height = 55,
     this.width = 225,
-    required this.child,
-    required this.iconData,
+    this.child,
+    this.iconData,
     required this.onPressed,
+    required this.controller,
     this.loaderSize = 50.0,
     this.loaderStrokeWidth = 1.5,
     this.animateOnTap = true,
-    this.valueColor = Colors.blue,
     this.borderRadius = 25,
     this.elevation = 5,
     this.duration = const Duration(milliseconds: 500),
     this.curve = Curves.easeInOutCirc,
+    this.primaryColor,
     this.errorColor = Colors.redAccent,
     this.successColor = Colors.green,
+    this.shadowColor,
+    this.valueColor,
+    this.disabledColor,
+    this.iconColor,
     this.resetDuration = const Duration(seconds: 15),
     this.resetAfterDuration = false,
     this.successIcon = Icons.check,
     this.failedIcon = Icons.close,
     this.completionCurve = Curves.elasticOut,
     this.completionDuration = const Duration(milliseconds: 1000),
-    this.disabledColor,
-    required this.controller,
     this.spaceBetween = 10,
-    this.iconColor = Colors.white,
-  }) : super(key: key);
+    this.showBox = true,
+  }) : super(key: key) {
+    assert(child != null || iconData != null);
+  }
 
   /// Required button controller
-  final IconButtonController controller;
+  final LoadingButtonController controller;
 
   /// Callback when button is pressed
   final VoidCallback? onPressed;
 
   /// Child widget
-  final Widget child;
+  final Widget? child;
 
   /// Icon for button
-  final IconData iconData;
+  final IconData? iconData;
 
   /// Icon color for button
-  final Color iconColor;
+  final Color? iconColor;
 
   /// Primary color or the button
-  final Color? color;
+  final Color? primaryColor;
 
   /// Vertical extent of the button
   final double height;
@@ -74,7 +79,7 @@ class IconLoadingButton extends StatefulWidget {
   final bool animateOnTap;
 
   /// The color of the static icons
-  final Color valueColor;
+  final Color? valueColor;
 
   /// Reset the animation after specified duration,
   final bool resetAfterDuration;
@@ -103,26 +108,34 @@ class IconLoadingButton extends StatefulWidget {
   /// The color of the button when it is disabled
   final Color? disabledColor;
 
+  /// The color of the shadow of the button
+  final Color? shadowColor;
+
   /// The icon for the success state
   final IconData successIcon;
 
   /// The icon for the failed state
   final IconData failedIcon;
 
-  /// The duration of the success and failed animation
+  /// The curve of the completion animation
   final Curve completionCurve;
 
+  /// The duration of the success and failed animation
   final Duration completionDuration;
+
+  /// Show background box for the button
+  /// Default is true
+  final bool showBox;
 
   Duration get _borderDuration {
     return Duration(milliseconds: (duration.inMilliseconds / 2).round());
   }
 
   @override
-  _IconLoadingButtonState createState() => _IconLoadingButtonState();
+  _LoadingButtonState createState() => _LoadingButtonState();
 }
 
-class _IconLoadingButtonState extends State<IconLoadingButton>
+class _LoadingButtonState extends State<LoadingButton>
     with TickerProviderStateMixin {
   late AnimationController _buttonController;
   late AnimationController _borderController;
@@ -137,7 +150,6 @@ class _IconLoadingButtonState extends State<IconLoadingButton>
   @override
   void initState() {
     super.initState();
-
     _buttonController =
         AnimationController(duration: widget.duration, vsync: this);
 
@@ -255,24 +267,38 @@ class _IconLoadingButtonState extends State<IconLoadingButton>
     var _loader = SizedBox(
       width: widget.loaderSize,
       height: widget.loaderSize,
-      child: Stack(
-        children: [
-          SizedBox(
-            height: widget.loaderSize,
-            width: widget.loaderSize,
-            child: CircularProgressIndicator(
-              backgroundColor: widget.valueColor.withOpacity(0.10),
-              valueColor: AlwaysStoppedAnimation<Color>(widget.valueColor),
-              strokeWidth: widget.loaderStrokeWidth,
+      child: Container(
+        decoration: BoxDecoration(
+          color: (widget.showBox) ? widget.primaryColor : Colors.transparent,
+          borderRadius: BorderRadius.circular(
+              (widget.child != null) ? widget.borderRadius : 360),
+        ),
+        child: Stack(
+          children: [
+            SizedBox(
+              height: widget.loaderSize,
+              width: widget.loaderSize,
+              child: CircularProgressIndicator(
+                backgroundColor: widget.valueColor?.withOpacity(0.10) ??
+                    theme.colorScheme.primary.withOpacity(0.10),
+                valueColor: (widget.showBox)
+                    ? AlwaysStoppedAnimation<Color>(
+                        widget.valueColor ?? theme.colorScheme.onPrimary)
+                    : AlwaysStoppedAnimation<Color>(
+                        widget.valueColor ?? theme.primaryColor),
+                strokeWidth: widget.loaderStrokeWidth,
+              ),
             ),
-          ),
-          Center(
-            child: Icon(
-              widget.iconData,
-              color: _state.value == ButtonState.loading ? widget.valueColor : widget.iconColor,
+            Center(
+              child: Icon(
+                widget.iconData,
+                color: _state.value == ButtonState.loading
+                    ? widget.valueColor
+                    : widget.iconColor,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
 
@@ -286,14 +312,16 @@ class _IconLoadingButtonState extends State<IconLoadingButton>
               : Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(
-                      widget.iconData,
-                      color: widget.iconColor,
-                    ),
-                    SizedBox(
-                      width: widget.spaceBetween,
-                    ),
-                    widget.child,
+                    if (widget.iconData != null)
+                      Icon(
+                        widget.iconData,
+                        color: widget.iconColor,
+                      ),
+                    if (widget.child != null || widget.iconData == null)
+                      SizedBox(
+                        width: widget.spaceBetween,
+                      ),
+                    widget.child ?? const SizedBox(),
                   ],
                 ),
         );
@@ -301,25 +329,33 @@ class _IconLoadingButtonState extends State<IconLoadingButton>
     );
 
     final _btn = ButtonTheme(
-        shape: RoundedRectangleBorder(borderRadius: _borderAnimation.value),
-        disabledColor: widget.disabledColor,
-        padding: const EdgeInsets.all(0),
-        child: ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            onSurface: widget.disabledColor,
-            minimumSize: Size(_squeezeAnimation.value, widget.height),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(widget.borderRadius),
-            ),
-            primary: _state.value == ButtonState.idle
-                ? widget.color
-                : Colors.transparent,
-            elevation: _state.value == ButtonState.idle ? widget.elevation : 0,
-            padding: const EdgeInsets.all(0),
+      shape: RoundedRectangleBorder(borderRadius: _borderAnimation.value),
+      disabledColor: widget.disabledColor,
+      padding: const EdgeInsets.all(0),
+      child: ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          onSurface: widget.disabledColor,
+          minimumSize: Size(
+              (widget.child != null) ? _squeezeAnimation.value : 55,
+              widget.height),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(
+                (widget.child != null) ? widget.borderRadius : 360),
           ),
-          onPressed: widget.onPressed == null ? null : _btnPressed,
-          child: childStream,
-        ));
+          primary: (widget.showBox) ? widget.primaryColor : Colors.transparent,
+          elevation: (widget.showBox) ? widget.elevation : 0,
+          shadowColor: (widget.showBox || kIsWeb)
+              ? widget.shadowColor
+              : Colors.transparent,
+          onPrimary: (widget.showBox)
+              ? theme.colorScheme.onPrimary
+              : theme.primaryColor,
+          padding: const EdgeInsets.all(0),
+        ),
+        onPressed: widget.onPressed == null ? null : _btnPressed,
+        child: childStream,
+      ),
+    );
 
     return SizedBox(
       height: widget.height,
@@ -377,7 +413,7 @@ class _IconLoadingButtonState extends State<IconLoadingButton>
 }
 
 /// Options that can be chosen by the controller
-class IconButtonController {
+class LoadingButtonController {
   late VoidCallback _startListener;
   late VoidCallback _stopListener;
   late VoidCallback _successListener;
