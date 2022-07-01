@@ -1,6 +1,11 @@
+## 0.0.3
+
+* Example application android bug fixed
+* Text alignment fixed
+
 ## 0.0.2
 
-* readme updated
+* Readme updated
 
 ## 0.0.1
 

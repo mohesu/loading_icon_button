@@ -317,7 +317,7 @@ class LoadingButtonState extends State<LoadingButton>
                         widget.iconData,
                         color: widget.iconColor,
                       ),
-                    if (widget.child != null || widget.iconData == null)
+                    if (widget.iconData != null && widget.child != null)
                       SizedBox(
                         width: widget.spaceBetween,
                       ),
