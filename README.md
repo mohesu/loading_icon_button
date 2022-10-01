@@ -1,4 +1,4 @@
-## loading icon button
+## loading icon button [![Pub Version (including pre-releases)](https://img.shields.io/pub/v/loading_icon_button?include_prereleases)](https://pub.dev/packages/loading_icon_button) [![GitHub issues](https://img.shields.io/github/issues-raw/rvndsngwn/loading_icon_button)](https://github.com/rvndsngwn/loading_icon_button/issues) [![GitHub contributors](https://img.shields.io/github/contributors/rvndsngwn/loading_icon_button)](https://github.com/rvndsngwn/loading_icon_button/graphs/contributors)
 
 with Card             |  without Card
 :-------------------------:|:-------------------------:
@@ -9,7 +9,7 @@ with Card             |  without Card
    Add this to your pubspec.yaml:
 
     dependencies:
-        loading_icon_button: ^0.0.2
+        loading_icon_button: ^0.0.3
 ## Usage
 ### Import
     import 'package:loading_icon_button/loading_icon_button.dart';
