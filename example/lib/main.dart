@@ -48,23 +48,23 @@ class _MyAppState extends State<MyApp> with SingleTickerProviderStateMixin {
             children: [
               Container(
                 margin: const EdgeInsets.all(12),
-                height: 200,
+                height: 240, //define in multiple of 8
                 decoration: BoxDecoration(
                   border: Border.all(
                     color: Colors.black,
-                    width: 1,
+                    width: 1.5,
                   ),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    const Text("Text Button Only"),
+                    const Text("Text  Only"),
                     Center(
                       child: LoadingButton(
                         showBox: show,
                         child: Text(
-                          'Login with Google',
+                          'Login with Google', // add other options
                           style: GoogleFonts.openSans().copyWith(
                             fontWeight: FontWeight.w500,
                           ),
@@ -87,7 +87,7 @@ class _MyAppState extends State<MyApp> with SingleTickerProviderStateMixin {
               ),
               Container(
                 margin: const EdgeInsets.all(12),
-                height: 200,
+                height: 240,
                 decoration: BoxDecoration(
                   border: Border.all(
                     color: Colors.black,
@@ -98,11 +98,11 @@ class _MyAppState extends State<MyApp> with SingleTickerProviderStateMixin {
                   crossAxisAlignment: CrossAxisAlignment.center,
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    const Text("Icon Text Button"),
+                    const Text("Icon Button"),
                     Center(
                       child: LoadingButton(
                         showBox: show,
-                        child: const Text('Login with Apple'),
+                        child: const Text('Login with Ios'),
                         iconData: PhosphorIcons.appleLogo,
                         onPressed: () {
                           Future.delayed(const Duration(seconds: 1), () {
@@ -120,8 +120,8 @@ class _MyAppState extends State<MyApp> with SingleTickerProviderStateMixin {
                 ),
               ),
               Container(
-                margin: const EdgeInsets.all(12),
-                height: 200,
+                margin: const EdgeInsets.all(8),
+                height: 240,
                 decoration: BoxDecoration(
                   border: Border.all(
                     color: Colors.black,
