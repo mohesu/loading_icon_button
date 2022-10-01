@@ -4,17 +4,35 @@ import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 void main() {
-  runApp(MyApp());
+  runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
-  MyApp({Key? key}) : super(key: key);
+class MyApp extends StatefulWidget {
+  const MyApp({Key? key}) : super(key: key);
 
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> with SingleTickerProviderStateMixin {
   final LoadingButtonController _btnController1 = LoadingButtonController();
+
   final LoadingButtonController _btnController2 = LoadingButtonController();
+
   final LoadingButtonController _btnController3 = LoadingButtonController();
 
+  late AnimationController animationController;
+
   final bool show = true;
+
+  @override
+  void initState() {
+    animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    );
+    super.initState();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -26,9 +44,7 @@ class MyApp extends StatelessWidget {
       ),
       home: SafeArea(
         child: Scaffold(
-          body: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          body: ListView(
             children: [
               Container(
                 margin: const EdgeInsets.all(12),
@@ -47,16 +63,10 @@ class MyApp extends StatelessWidget {
                     Center(
                       child: LoadingButton(
                         showBox: show,
-                        primaryColor: Colors.white,
-                        iconColor: const Color(0xff0066ff),
-                        valueColor: const Color(0xff0066ff),
-                        errorColor: const Color(0xffe0333c),
-                        successColor: const Color(0xff58B09C),
                         child: Text(
                           'Login with Google',
                           style: GoogleFonts.openSans().copyWith(
                             fontWeight: FontWeight.w500,
-                            color: const Color(0xff0066ff),
                           ),
                         ),
                         //  iconData: PhosphorIcons.googleLogo,
@@ -142,6 +152,100 @@ class MyApp extends StatelessWidget {
                         },
                         successIcon: PhosphorIcons.check,
                         controller: _btnController2,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                margin: const EdgeInsets.all(12),
+                height: 200,
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: Colors.black,
+                    width: 1,
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    const Text("Argon Button"),
+                    Center(
+                      child: ArgonButton(
+                        height: 50,
+                        roundLoadingShape: true,
+                        width: 200,
+                        onTap: (startLoading, stopLoading, btnState) {
+                          startLoading();
+                          Future.delayed(const Duration(seconds: 2), () {
+                            stopLoading();
+                          });
+                        },
+                        loader: const Center(
+                          child: CircularProgressIndicator(
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.white,
+                            ),
+                          ),
+                        ),
+                        child: const Text(
+                          "SignUp",
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700),
+                        ),
+                        borderRadius: 5.0,
+                        color: const Color(0xFFfb4747),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                margin: const EdgeInsets.all(12),
+                height: 200,
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: Colors.black,
+                    width: 1,
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    const Text("Argon Timer Button"),
+                    Center(
+                      child: ArgonTimerButton(
+                        initialTimer: 10, // Optional
+                        height: 50,
+                        width: 200,
+                        minWidth: 130,
+                        color: const Color(0xFF7866FE),
+                        borderRadius: 5.0,
+                        child: const Text(
+                          "Resend OTP",
+                          style: TextStyle(
+                              color: Colors.black,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700),
+                        ),
+                        loader: (timeLeft) {
+                          return Text(
+                            "Wait | $timeLeft",
+                            style: const TextStyle(
+                                color: Colors.black,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700),
+                          );
+                        },
+                        onTap: (startTimer, btnState) {
+                          if (btnState == ArgonButtonState.idle) {
+                            startTimer(20);
+                          }
+                        },
                       ),
                     ),
                   ],
