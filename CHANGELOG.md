@@ -1,3 +1,6 @@
+## 0.0.5
+- Readme updated
+
 ## 0.0.4
 - New Argon buttons added inspired by [argon_buttons_flutter](https://pub.dev/packages/argon_buttons_flutter)
 - Dependencies updated

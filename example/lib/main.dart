@@ -178,7 +178,7 @@ class _MyAppState extends State<MyApp> with SingleTickerProviderStateMixin {
                         width: 200,
                         onTap: (startLoading, stopLoading, btnState) {
                           startLoading();
-                          Future.delayed(const Duration(seconds: 2), () {
+                          Future.delayed(const Duration(seconds: 3), () {
                             stopLoading();
                           });
                         },
@@ -243,9 +243,56 @@ class _MyAppState extends State<MyApp> with SingleTickerProviderStateMixin {
                         },
                         onTap: (startTimer, btnState) {
                           if (btnState == ArgonButtonState.idle) {
-                            startTimer(20);
+                            startTimer(3);
                           }
                         },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                margin: const EdgeInsets.all(12),
+                height: 200,
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: Colors.black,
+                    width: 1,
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    const Text("Argon Timer Button"),
+                    Center(
+                      child: ArgonButton(
+                        height: 50,
+                        roundLoadingShape: false,
+                        width: 200,
+                        minWidth: 130,
+                        onTap: (startLoading, stopLoading, btnState) {
+                          startLoading();
+                          Future.delayed(const Duration(seconds: 3), () {
+                            stopLoading();
+                          });
+                        },
+                        child: const Text(
+                          "Continue",
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700),
+                        ),
+                        loader: const Text(
+                          "Loading...",
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700),
+                        ),
+                        borderRadius: 5.0,
+                        color: Colors.cyan,
                       ),
                     ),
                   ],
