@@ -71,9 +71,9 @@ class _MyAppState extends State<MyApp> with SingleTickerProviderStateMixin {
                         ),
                         //  iconData: PhosphorIcons.googleLogo,
                         onPressed: () {
-                          Future.delayed(const Duration(seconds: 1), () {
+                          Future.delayed(const Duration(seconds: 2), () {
                             _btnController1.success();
-                            Future.delayed(const Duration(seconds: 2), () {
+                            Future.delayed(const Duration(seconds: 1), () {
                               _btnController1.reset();
                             });
                           });
@@ -87,10 +87,12 @@ class _MyAppState extends State<MyApp> with SingleTickerProviderStateMixin {
               ),
               Container(
                 margin: const EdgeInsets.all(12),
-                height: 240,
+
+                height: 240, // always define in multiple of 8
+
                 decoration: BoxDecoration(
                   border: Border.all(
-                    color: Colors.black,
+                    color: Colors.black.shade200, // for better look
                     width: 1,
                   ),
                 ),
@@ -105,7 +107,7 @@ class _MyAppState extends State<MyApp> with SingleTickerProviderStateMixin {
                         child: const Text('Login with Ios'),
                         iconData: PhosphorIcons.appleLogo,
                         onPressed: () {
-                          Future.delayed(const Duration(seconds: 1), () {
+                          Future.delayed(const Duration(seconds: 2), () {
                             _btnController3.success();
                             Future.delayed(const Duration(seconds: 2), () {
                               _btnController3.reset();
@@ -120,7 +122,9 @@ class _MyAppState extends State<MyApp> with SingleTickerProviderStateMixin {
                 ),
               ),
               Container(
+
                 margin: const EdgeInsets.all(8),
+
                 height: 240,
                 decoration: BoxDecoration(
                   border: Border.all(
@@ -129,7 +133,7 @@ class _MyAppState extends State<MyApp> with SingleTickerProviderStateMixin {
                   ),
                 ),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center, // left or right can also be implied
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
                     const Text("Icon Button Only"),
@@ -159,7 +163,7 @@ class _MyAppState extends State<MyApp> with SingleTickerProviderStateMixin {
               ),
               Container(
                 margin: const EdgeInsets.all(12),
-                height: 200,
+                height: 240,
                 decoration: BoxDecoration(
                   border: Border.all(
                     color: Colors.black,
@@ -220,7 +224,7 @@ class _MyAppState extends State<MyApp> with SingleTickerProviderStateMixin {
                     Center(
                       child: ArgonTimerButton(
                         initialTimer: 10, // Optional
-                        height: 50,
+                        height: 80,
                         width: 200,
                         minWidth: 130,
                         color: const Color(0xFF7866FE),
