@@ -92,7 +92,7 @@ class _MyAppState extends State<MyApp> with SingleTickerProviderStateMixin {
 
                 decoration: BoxDecoration(
                   border: Border.all(
-                    color: Colors.black.shade200, // for better look
+                    color: Colors.black26, // for better look
                     width: 1,
                   ),
                 ),
