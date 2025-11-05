@@ -183,9 +183,13 @@ class _LoadingButtonState extends State<LoadingButton>
     try {
       _stateSubject.add(ActionState.loading);
       await widget.onPressed?.call();
-      _stateSubject.add(ActionState.success);
+      if (mounted) {
+        _stateSubject.add(ActionState.success);
+      }
     } catch (error) {
-      _stateSubject.add(ActionState.error);
+      if (mounted) {
+        _stateSubject.add(ActionState.error);
+      }
       widget.onError?.call(error);
 
       if (_config.debugMode) {
