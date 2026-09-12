@@ -132,11 +132,13 @@ LoadingButton(
 
 ### Also new in 1.0.0
 
-* `ElevatedLoadingButton`, `FilledLoadingButton`, `OutlinedLoadingButton`,
-  `TextLoadingButton`, `IconLoadingButton` — Material buttons driven by an
-  `isLoading` flag.
-* `ElevatedAutoLoadingButton` and friends — the same buttons, loading for as
-  long as an async callback runs.
+* `ElevatedLoadingButton`, `FilledLoadingButton`, `OutlinedLoadingButton` and
+  `TextLoadingButton` — Material buttons driven by an `isLoading` flag. There is
+  no `IconLoadingButton`; use `IconAutoLoadingButton` for an icon button.
+* `ElevatedAutoLoadingButton`, `FilledAutoLoadingButton`,
+  `OutlinedAutoLoadingButton`, `TextAutoLoadingButton` and
+  `IconAutoLoadingButton` — the same buttons, loading for as long as an async
+  callback runs.
 * `LoadingButtonBuilder` — a fluent builder over `LoadingButton`.
 * `LoadingButtonConfig` — a global defaults singleton
   ([deprecated in 1.1.0](#deprecations-in-110)).
@@ -194,7 +196,9 @@ API change.
 newer.** Everything else in this section is either optional or a behaviour
 change you get for free. No public member was removed or renamed in 1.1.0,
 with the single narrow exception of
-[the extension rename](#the-actionstate-extension-was-renamed).
+[the extension rename](#the-actionstate-extension-was-renamed), and one
+parameter type was narrowed:
+[`ArgonTimerButton.loader`](#argontimerbuttonloader-is-typed-more-tightly).
 
 ### The one hard requirement: the SDK floor
 
@@ -311,6 +315,45 @@ One member changed meaning:
 
 If you relied on the old meaning, use `isIdle`, which is unchanged.
 
+### `ArgonTimerButton.loader` is typed more tightly
+
+This is the one signature change in 1.1.0, and it is source-breaking for a
+narrow case.
+
+| | Type |
+| --- | --- |
+| Up to 1.0.3 | `final Function(int time)? loader;` |
+| From 1.1.0 | `final Widget Function(int time)? loader;` |
+
+The value has always been used in a `child:` position, so the tighter type only
+writes down what the widget already needed — nothing about the rendered result
+changes. What does change is assignability. The old bare `Function(int time)`
+placed no constraint at all on the return type, so anything compiled; the new
+type requires a non-nullable `Widget`.
+
+```dart
+// Still fine — returns a Widget on every path.
+loader: (int time) => Text('$time'),
+
+// Compiled before. Now: "The returned type 'Text?' isn't returnable
+// from a 'Widget' function".
+loader: (int time) => time > 0 ? Text('$time') : null,
+
+// Compiled before. Now: "The body might complete normally, causing
+// 'null' to be returned, but the return type, 'Widget', is a
+// potentially non-nullable type".
+loader: (int time) {
+  debugPrint('$time');
+},
+
+// Also affected: any torn-off function or typedef whose declared return
+// type is dynamic, void, or a nullable Widget.
+```
+
+The fix is to return a non-nullable `Widget` on every path — `const
+SizedBox.shrink()` for the "show nothing" case. Annotating the closure as
+`Widget Function(int time)` will point the analyzer at whichever path does not.
+
 ### Behaviour changes
 
 None of these change a signature; all of them are observable at runtime.
@@ -324,7 +367,9 @@ None of these change a signature; all of them are observable at runtime.
 | `onStateChanged` no longer fires a spurious `ActionState.idle` when the button is first built. | State used to flow through a `BehaviorSubject` seeded with `idle`, so subscribing in `initState` replayed that seed as if it were a transition. `onStateChanged` is now called only for real changes. |
 | Screen readers announce the button once, not twice. | The button was wrapped in its own `Semantics(button: true, …)` node on top of the Material button's own node, producing a duplicate. The transient state text (`loadingText` / `successText` / `errorText`) now rides on the child as a `liveRegion` label instead, so state changes are announced without a second button node. |
 | A disposed `LoadingButton` cancels its pending reset instead of firing it. | The success/error reset was a `Future.delayed` that could not be cancelled; it is now a `Timer` cancelled in `dispose` and re-armed on each state change. |
-| `ArgonButton` with a null `onTap` renders as disabled instead of throwing. | `onTap` and `loader` were force-unwrapped despite being nullable. Escaping `startLoading`/`stopLoading` closures and the timer callbacks are now `mounted`-guarded too. |
+| `ArgonButton` with a null `onTap` renders as disabled instead of throwing. | `ArgonButton.onTap` was force-unwrapped as `widget.onTap!(…)` in the tap handler despite being nullable, so the first tap on a button without an `onTap` threw. Escaping `startLoading`/`stopLoading` closures and the timer callbacks are now `mounted`-guarded too. |
+| `ArgonButton` with a null `loader` shows a default spinner instead of nothing. | The old code did **not** crash here: `loader` went straight into a `child:` position, where null is legal, so a button with no `loader` animated down to a pill and showed an empty pill for the whole busy window. A spinner is the more useful default. To keep the old empty pill, pass `loader: const SizedBox.shrink()`. |
+| `ArgonTimerButton` with a null `loader` shows a default spinner instead of throwing. | This is the one that crashed: the countdown builder called `widget.loader!(secondsLeft)`, so any `ArgonTimerButton` without a `loader` threw as soon as the timer started. |
 | `ArgonTimerButton.startTimer` throws `ArgumentError` on a bad timer value. | It used to `throw` a bare `String`, which cannot be caught as an `Exception` and prints poorly. |
 
 If a widget test of yours asserted any of the old behaviours — a double-fired

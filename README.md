@@ -73,6 +73,13 @@ Each state is a separate hand-tuned design rather than a variation on one loop.
 const ThinkingOrb(state: OrbState.searching, size: 64)
 ```
 
+<img src="https://github.com/itsarvinddev/loading_icon_button/blob/master/doc/thinking-orbs.png?raw=true" width="560" alt="The nine thinking-orb states, each shown at the 64px avatar tuning with the 20px inline tuning beside it" />
+
+<sub>Left to right, top to bottom: `working`, `searching`, `solving`, `listening`, `connecting`,
+`weaving`, `composing`, `breathing`, `shaping`. The small orb in each cell is the same state at the
+inline tuning. Single frames of continuous animations — run the
+[example gallery](example/) to see them move.</sub>
+
 ### The nine states
 
 | `OrbState`    | What it depicts                                            | Default label |
@@ -153,7 +160,12 @@ Any button in the package accepts a `LoadingIndicator`:
 ```dart
 LoadingButton(
   onPressed: () async => submit(),
-  indicator: const LoadingIndicator.orb(state: OrbState.working),
+  // LoadingButton does not inherit the button's icon theme — see below.
+  indicator: const LoadingIndicator.orb(
+    state: OrbState.working,
+    size: 18,
+    color: Colors.white,
+  ),
   child: const Text('Ask the agent'),
 )
 ```
@@ -162,15 +174,27 @@ LoadingButton(
 ElevatedAutoLoadingButton.icon(
   onPressed: () async => submit(),
   indicator: const LoadingIndicator.orb(state: OrbState.working),
+  loadingLabel: const Text('Sending…'),
   icon: const Icon(Icons.send),
   label: const Text('Send'),
 )
 ```
 
-Orb size and colour default to the ambient `IconTheme`, so the orb picks up the
-button's resolved foreground colour in both brightnesses. When an orb is used as a
-button indicator its own semantic label is suppressed — the button already announces
-"Loading", and a second label would double-announce.
+**Where the defaults come from.** An orb with no `size` or `color` reads the ambient
+`IconTheme`. In the `*AutoLoadingButton` and `*LoadingButton` families the indicator is
+built *inside* the Material button, so that `IconTheme` is the one the button itself
+installs: the orb picks up the button's resolved foreground colour and icon size
+automatically, in both brightnesses.
+
+`LoadingButton` is the exception. It builds its indicator from its own `State`'s
+context, which sits **above** the Material button, so `IconTheme.of(context)` there
+resolves `ThemeData.iconTheme` (black87 at 24 logical pixels in a default light theme)
+rather than the button's foreground. Give a `LoadingButton` indicator an explicit
+`color:` and `size:`, as the first snippet does — otherwise a light-theme button that
+declares a white foreground will show dark dots at the wrong size.
+
+When an orb is used as a button indicator its own semantic label is suppressed — the
+button already announces "Loading", and a second label would double-announce.
 
 ### Orbs app-wide
 
@@ -582,8 +606,34 @@ LoadingIndicator.builder(
 );
 ```
 
-A `loadingWidget` passed directly to the button still wins over `indicator`, which wins
-over the theme's indicator, which wins over the package default.
+On `LoadingButton`, the widget shown while loading is resolved in this order:
+
+`loadingWidget` → `loadingText` → `indicator` → the theme's indicator → the package
+default (a `CircularProgressIndicator`).
+
+Note the second entry: **`loadingText` replaces the indicator rather than labelling
+it.** A `LoadingButton` given a `loadingText` shows that text alone — no spinner, no
+orb — so setting both `loadingText` and `indicator` renders only the text. The same
+shape applies to `successWidget`/`successText` and `errorWidget`/`errorText`. To show
+an indicator *and* a caption, build the pair yourself and pass it as `loadingWidget`:
+
+```dart
+LoadingButton(
+  onPressed: () async => submit(),
+  loadingWidget: const Row(
+    mainAxisSize: MainAxisSize.min,
+    children: <Widget>[
+      SizedBox.square(
+        dimension: 18,
+        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+      ),
+      SizedBox(width: 8),
+      Text('Submitting…'),
+    ],
+  ),
+  child: const Text('Submit'),
+)
+```
 
 ### Custom transitions
 
@@ -636,9 +686,14 @@ LoadingButtonBuilder.filled()
 
 Factories: `.elevated()`, `.filled()`, `.outlined()`, `.text()`, `.icon()`.
 
-A builder is **mutable and single-use**. Building twice returns two different widgets
-that share the same `key`, which is an error if both are mounted. Create one builder,
-configure it, build once.
+A builder is **mutable and single-use**. Create one builder, configure it, build once.
+Two consequences of the mutability:
+
+- A setter called *after* `build()` does not affect the widget that was already built —
+  `build()` snapshots the configuration, so late changes are silently lost.
+- If you called `.key(…)`, building twice returns two different widgets carrying that
+  same key, which is an error if both are mounted at once. With no `.key(…)` call both
+  widgets get a null key and mounting both is legal.
 
 ### LoadingButton properties
 
@@ -650,9 +705,9 @@ configure it, build once.
 | `loadingWidget`        | `Widget?`                                               | `null`             |
 | `successWidget`        | `Widget?`                                               | `null`             |
 | `errorWidget`          | `Widget?`                                               | `null`             |
-| `loadingText`          | `String?`                                               | `null`             |
-| `successText`          | `String?`                                               | `null`             |
-| `errorText`            | `String?`                                               | `null`             |
+| `loadingText`          | `String?` — **replaces** the indicator, see †            | `null`             |
+| `successText`          | `String?` — **replaces** `successWidget`'s slot, see †   | `null`             |
+| `errorText`            | `String?` — **replaces** `errorWidget`'s slot, see †     | `null`             |
 | `indicator`            | `LoadingIndicator?`                                     | theme, then circular |
 | `progress`             | `double?`                                               | `null`             |
 | `progressStyle`        | `LoadingProgressStyle?`                                 | `indicator`        |
@@ -679,6 +734,12 @@ configure it, build once.
 | `onFailure`            | `void Function(Object, StackTrace)?`                    | `null`             |
 | `onStateChanged`       | `void Function(ActionState)?`                           | `null`             |
 | `onError`              | `Function(dynamic)?` — **deprecated**, use `onFailure`  | `null`             |
+
+† `loadingText` / `successText` / `errorText` are not captions added beside the
+indicator or icon — each one **replaces** the widget for that state. Setting
+`loadingText` means the loading state shows only that text, even if you also passed an
+`indicator`. They double as the state's accessible label. To show both, build the pair
+yourself and pass it as `loadingWidget` / `successWidget` / `errorWidget`.
 
 `ButtonType` is `elevated`, `filled`, `outlined`, `text` or `icon`.
 
@@ -707,24 +768,34 @@ ElevatedAutoLoadingButton(
 ```dart
 FilledAutoLoadingButton.tonal(
   onPressed: () async => submit(),
+  loadingLabel: const Text('Working…'),
   child: const Text('Tonal'),
 )
 
 OutlinedAutoLoadingButton(
   onPressed: () async => submit(),
+  loadingLabel: const Text('Working…'),
   child: const Text('Outlined'),
 )
 
-IconAutoLoadingButton(
-  onPressed: () async => submit(),
-  icon: const Icon(Icons.refresh),
-  tooltip: 'Refresh',
+// IconAutoLoadingButton has no child to label, so wrap it to keep an
+// accessible name while the indicator is showing.
+Semantics(
+  label: 'Refresh',
+  child: IconAutoLoadingButton(
+    onPressed: () async => submit(),
+    icon: const Icon(Icons.refresh),
+    tooltip: 'Refresh',
+  ),
 )
 
-IconAutoLoadingButton.filledTonal(
-  onPressed: () async => submit(),
-  indicator: const LoadingIndicator.orb(state: OrbState.searching, size: 20),
-  icon: const Icon(Icons.search),
+Semantics(
+  label: 'Search',
+  child: IconAutoLoadingButton.filledTonal(
+    onPressed: () async => submit(),
+    indicator: const LoadingIndicator.orb(state: OrbState.searching, size: 20),
+    icon: const Icon(Icons.search),
+  ),
 )
 ```
 
@@ -736,7 +807,7 @@ Shared parameters, beyond the ones the underlying Material button already takes:
 | `onLongPress`    | `AsyncCallback?` — same treatment                                         |
 | `loadingIcon`    | Replaces the indicator outright                                           |
 | `indicator`      | A `LoadingIndicator`; falls back to the theme, then a spinner             |
-| `loadingLabel`   | Optional text beside the indicator; omit it and the button shrinks to just the indicator |
+| `loadingLabel`   | Text beside the indicator (not on `IconAutoLoadingButton`, which has no label slot). Omit it and the button shrinks to just the indicator — **and loses its accessible name for the whole loading window**, since the indicator replaces the child. Pass it, or wrap the button in your own `Semantics`. |
 | `switchDuration` | The `AnimatedSize` transition as the button resizes (`kThemeAnimationDuration`) |
 
 `IconAutoLoadingButton` additionally takes `selectedIcon` / `selectedLoadingIcon`
@@ -790,6 +861,7 @@ FilledLoadingButton.tonalIcon(
   isLoading: _isLoading,
   onPressed: _submit,
   indicator: const LoadingIndicator.orb(state: OrbState.working),
+  loadingLabel: const Text('Running…'),
   icon: const Icon(Icons.bolt),
   label: const Text('Run'),
 )
@@ -798,16 +870,21 @@ OutlinedLoadingButton(
   isLoading: _isLoading,
   loadingClickable: true, // stays tappable while loading — e.g. to cancel
   onPressed: _submit,
+  loadingLabel: const Text('Cancel'),
   child: const Text('Cancellable'),
 )
 
 TextLoadingButton.icon(
   isLoading: _isLoading,
   onPressed: _submit,
+  loadingLabel: const Text('Retrying…'),
   icon: const Icon(Icons.refresh),
   label: const Text('Retry'),
 )
 ```
+
+Every snippet here passes `loadingLabel`. That is deliberate: the indicator replaces
+the child, so without a `loadingLabel` the button has no accessible name while busy.
 
 `isLoading`, `onPressed` and `child` (or `icon` + `label`) are required. `onPressed`
 here is a plain `VoidCallback?`, not an `AsyncCallback`. Unless `loadingClickable` is
@@ -876,7 +953,14 @@ ArgonTimerButton(
 
 ## Accessibility
 
-What the package actually does:
+### What `LoadingButton` does
+
+The button semantics below are **`LoadingButton`'s alone**. The
+`*AutoLoadingButton` and `*LoadingButton` families are thinner wrappers and publish no
+semantics of their own — read
+[Things to handle yourself](#things-to-handle-yourself) before relying on anything here
+for those. (The orb and tooltip items are the exceptions: they apply wherever a
+`ThinkingOrb` or a `tooltip` is used.)
 
 - **Real Material buttons underneath.** `LoadingButton` renders an `ElevatedButton`,
   `FilledButton`, `OutlinedButton`, `TextButton` or `IconButton`, so it inherits the
@@ -910,7 +994,28 @@ LoadingButton(
 )
 ```
 
-Things to handle yourself:
+### Things to handle yourself
+
+- **The other two families publish no loading semantics.** The
+  `*AutoLoadingButton` and `*LoadingButton` families add no `Semantics` node and no
+  `liveRegion`; nothing above applies to them. Worse, because the indicator *replaces*
+  the child, the button's accessible name disappears for the whole loading window: a
+  button that reads `label: "Send"` while idle exposes no label at all while busy.
+  Passing `loadingLabel` is what keeps a name there — the label sits beside the
+  indicator and becomes the button's accessible name while loading. If you need a name
+  that differs from the visible label (or none is visible, as on an
+  `IconAutoLoadingButton`), wrap the button in your own `Semantics`:
+
+  ```dart
+  Semantics(
+    label: 'Refresh',
+    child: IconAutoLoadingButton(
+      onPressed: () async => refresh(),
+      icon: const Icon(Icons.refresh),
+      tooltip: 'Refresh',
+    ),
+  )
+  ```
 
 - **Localisation.** The fallback labels are English literals. Pass your own localised
   `loadingText` / `successText` / `errorText` and `semanticLabel`.

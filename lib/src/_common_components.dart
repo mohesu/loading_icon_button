@@ -111,6 +111,13 @@ abstract class AutoLoadingButtonState<T extends StatefulWidget>
         : () => _reportIfUnobserved(doLongPress());
   }
 
+  /// The run whose failure has already been handed to [FlutterError].
+  ///
+  /// Taps that arrive before the loading rebuild lands all join the SAME
+  /// pending run, so without this one exception would be reported once per
+  /// tap.
+  Future<void>? _reportedRun;
+
   /// Routes a failure from the TAP path to [FlutterError].
   ///
   /// A tap discards the future, so without this a throwing callback would
@@ -118,6 +125,8 @@ abstract class AutoLoadingButtonState<T extends StatefulWidget>
   /// invoke [doPress] themselves are not routed through here, so they receive
   /// the error on the returned future and can handle it normally.
   void _reportIfUnobserved(Future<void> future) {
+    if (identical(future, _reportedRun)) return;
+    _reportedRun = future;
     future.catchError((Object error, StackTrace stackTrace) {
       FlutterError.reportError(FlutterErrorDetails(
         exception: error,

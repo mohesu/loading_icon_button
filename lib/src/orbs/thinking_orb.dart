@@ -125,6 +125,15 @@ class _ThinkingOrbState extends State<ThinkingOrb>
   void initState() {
     super.initState();
     _resolved = resolvePreset(widget.state, tierForSize(widget.size));
+    // Join the shared clock immediately. Without this an orb mounted into a
+    // running app paints one frame at t = 0 — a visible hitch, and out of step
+    // with every orb already on screen — before its first tick lands.
+    if (_epoch != null) {
+      final double? seconds = _currentSharedSeconds();
+      if (seconds != null) {
+        _time.value = seconds * _resolved.speed * widget.speed;
+      }
+    }
     // Created through the mixin so [TickerMode] mutes it automatically when
     // the orb's route is not current.
     _ticker = createTicker(_onTick);
@@ -182,11 +191,37 @@ class _ThinkingOrbState extends State<ThinkingOrb>
     // Read the frame timestamp rather than this ticker's own elapsed time:
     // it is identical for every orb painted in the same frame, which is what
     // keeps independently-mounted orbs synchronised.
-    final Duration now = SchedulerBinding.instance.currentFrameTimeStamp;
-    _epoch ??= now;
-    final double seconds =
-        (now - _epoch!).inMicroseconds / Duration.microsecondsPerSecond;
-    _time.value = seconds * _resolved.speed * widget.speed;
+    _time.value = _sharedSeconds(
+          SchedulerBinding.instance.currentFrameTimeStamp,
+        ) *
+        _resolved.speed *
+        widget.speed;
+  }
+
+  /// Seconds since the shared epoch, re-anchoring if the clock moved backwards.
+  ///
+  /// The frame clock is not monotonic across the lifetime of a static epoch:
+  /// the test binding restarts it for every test, so a second test would
+  /// otherwise read a timestamp before the epoch an earlier test set and paint
+  /// a negative, test-order-dependent time.
+  static double _sharedSeconds(Duration now) {
+    final Duration? epoch = _epoch;
+    if (epoch == null || now < epoch) {
+      _epoch = now;
+      return 0;
+    }
+    return (now - epoch).inMicroseconds / Duration.microsecondsPerSecond;
+  }
+
+  /// The shared clock's current reading, or null if no frame is in flight.
+  ///
+  /// [SchedulerBinding.currentFrameTimeStamp] is only populated between the
+  /// begin-frame and end-of-frame callbacks, which is exactly the window where
+  /// [SchedulerBinding.schedulerPhase] is not idle.
+  static double? _currentSharedSeconds() {
+    final SchedulerBinding binding = SchedulerBinding.instance;
+    if (binding.schedulerPhase == SchedulerPhase.idle) return null;
+    return _sharedSeconds(binding.currentFrameTimeStamp);
   }
 
   @override

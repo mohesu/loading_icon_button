@@ -20,6 +20,13 @@ doc/api/
 .flutter-plugins
 .flutter-plugins-dependencies
 
+# -------------------------------------------------------------- coverage output
+# `flutter test --coverage` runs on every push (see .github/workflows/ci.yaml)
+# and writes coverage/lcov.info. `pub publish` does not warn about it, so it
+# has to be excluded explicitly or it ships in the archive.
+coverage/
+*.lcov
+
 # ------------------------------------------------------------------ test data
 # 610 KB of upstream golden vectors that only CI needs; the orb golden test
 # cannot run without them, so it is left out of the archive as well. Both are

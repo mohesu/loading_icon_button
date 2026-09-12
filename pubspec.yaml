@@ -8,8 +8,10 @@ issue_tracker: https://github.com/itsarvinddev/loading_icon_button/issues
 repository: https://github.com/itsarvinddev/loading_icon_button.git
 documentation: https://github.com/itsarvinddev/loading_icon_button/blob/master/README.md
 screenshots:
-  - description: "Loading Icon Button"
+  - description: "Loading buttons with idle, loading, success and error states"
     path: generated-image.png
+  - description: "The nine thinking-orb indicator states, at both tuned sizes"
+    path: doc/thinking-orbs.png
 
 topics:
   - button
@@ -18,8 +20,10 @@ topics:
   - ui
   - material-design
 
-# Pure Dart/Flutter: no dart:io, no platform channels, no plugin registration,
-# so every Flutter target is genuinely supported.
+# Pure Dart and Flutter: no dart:io, no native code, no plugins. The only
+# platform channel used is HapticFeedback, which needs no plugin registration
+# and no-ops where the platform does not provide it — so every Flutter target
+# is genuinely supported.
 platforms:
   android:
   ios:

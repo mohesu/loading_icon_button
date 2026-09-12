@@ -139,8 +139,9 @@ class LoadingButton extends StatefulWidget {
 
   /// Whether to return to idle after the success or error window elapses.
   ///
-  /// When false the button stays in its terminal state; drive it back with a
-  /// [controller] or by rebuilding.
+  /// When false the button PARKS in its terminal state, and a parked button is
+  /// not pressable: presses are only accepted from [ActionState.idle]. Drive it
+  /// back with `controller.reset()`, which is the only way out.
   final bool resetAfterDuration;
 
   /// Whether a press fires haptic feedback.
@@ -226,22 +227,41 @@ class LoadingButtonState extends State<LoadingButton>
 
   DateTime? _lastAcceptedPress;
 
+  /// The last machine state handed to [LoadingButton.onStateChanged].
+  ActionState _lastMachineState = ActionState.idle;
+
   ValueNotifier<LoadingButtonValue> get _notifier =>
       widget.controller ?? _internal;
 
   LoadingButtonValue get _value => _notifier.value;
 
-  /// The button's current phase.
-  ActionState get currentState => _value.state;
+  /// The phase the button is currently showing.
+  ActionState get currentState => _renderState;
+
+  /// The phase the button PAINTS, which is not always the machine state.
+  ///
+  /// [LoadingButton.enabled] is a property of this widget, not part of the
+  /// value a [LoadingButtonController] holds: writing [ActionState.disabled]
+  /// into a shared controller would disable every sibling bound to it. So the
+  /// disabled phase is layered on here, at render time, and the controller's
+  /// value is left alone.
+  ///
+  /// A run already in flight is never masked — a button disabled mid-request
+  /// keeps showing its spinner until the request settles.
+  ActionState get _renderState => !widget.enabled && !_value.isLoading
+      ? ActionState.disabled
+      : _value.state;
 
   @override
   void initState() {
     super.initState();
     widget.controller?._attach(this);
+    _lastMachineState = _value.state;
+    // Deliberately no write to the notifier here: initState runs inside the
+    // build phase, so notifying would dispatch onStateChanged mid-build and
+    // any listener that marked an ancestor dirty would trip a framework
+    // assertion. `enabled` is honoured by _renderState and _isEnabled instead.
     _notifier.addListener(_onValueChanged);
-    if (!widget.enabled) {
-      _notifier.value = _value.copyWith(state: ActionState.disabled);
-    }
   }
 
   @override
@@ -254,11 +274,8 @@ class LoadingButtonState extends State<LoadingButton>
       widget.controller?._attach(this);
       _notifier.addListener(_onValueChanged);
     }
-    if (old.enabled != widget.enabled && !_value.isLoading) {
-      _notifier.value = _value.copyWith(
-        state: widget.enabled ? ActionState.idle : ActionState.disabled,
-      );
-    }
+    // An `enabled` change needs no write: _renderState derives the disabled
+    // phase from the property, and didUpdateWidget already rebuilds.
   }
 
   @override
@@ -274,8 +291,36 @@ class LoadingButtonState extends State<LoadingButton>
   void _onValueChanged() {
     if (!mounted) return;
     setState(() {});
-    widget.onStateChanged?.call(_value.state);
-    _scheduleReset(_value.state);
+    // Progress ticks share the value, so they arrive here too. Reporting a
+    // transition or re-arming the reset window for them would fire
+    // onStateChanged once per tick and push the success window back forever.
+    final ActionState state = _value.state;
+    if (state == _lastMachineState) return;
+    _lastMachineState = state;
+    _safeCallback(
+      () => widget.onStateChanged?.call(state),
+      'LoadingButton.onStateChanged',
+    );
+    _scheduleReset(state);
+  }
+
+  /// Invokes an application callback without letting it corrupt the state
+  /// machine.
+  ///
+  /// A throw from [LoadingButton.onSuccess] used to be caught by the same
+  /// handler as [LoadingButton.onPressed], which drove the button to
+  /// [ActionState.error] and reported a successful run as a failure.
+  void _safeCallback(VoidCallback body, String description) {
+    try {
+      body();
+    } catch (error, stackTrace) {
+      FlutterError.reportError(FlutterErrorDetails(
+        exception: error,
+        stack: stackTrace,
+        library: 'loading_icon_button',
+        context: ErrorDescription('thrown by $description'),
+      ));
+    }
   }
 
   void _setValue(LoadingButtonValue value) {
@@ -312,11 +357,9 @@ class LoadingButtonState extends State<LoadingButton>
         }
         return;
       }
-      _setValue(
-        widget.enabled
-            ? LoadingButtonValue.idle
-            : const LoadingButtonValue(state: ActionState.disabled),
-      );
+      // Always idle: `enabled` is layered on by _renderState, so both the
+      // cooldown and the plain path write the same machine state.
+      _setValue(LoadingButtonValue.idle);
     });
   }
 
@@ -350,30 +393,58 @@ class LoadingButtonState extends State<LoadingButton>
       }
 
       _setValue(const LoadingButtonValue(state: ActionState.loading));
+
+      // Only the user's action is guarded. Everything below — the transition
+      // and the notification callbacks — runs outside the catch, so a throw
+      // from onSuccess or onFailure cannot be mistaken for a failed action.
+      Object? error;
+      StackTrace? stackTrace;
       try {
         await onPressed();
+      } catch (e, s) {
+        error = e;
+        stackTrace = s;
+      }
+
+      if (error == null) {
         if (!mounted) return;
         _setValue(const LoadingButtonValue(state: ActionState.success));
-        widget.onSuccess?.call();
-      } catch (error, stackTrace) {
-        if (mounted) {
-          _setValue(LoadingButtonValue(
-            state: ActionState.error,
-            error: error,
-            stackTrace: stackTrace,
-          ));
-        }
-        widget.onFailure?.call(error, stackTrace);
-        // ignore: deprecated_member_use_from_same_package
-        widget.onError?.call(error);
-        if (widget.onFailure == null && widget.onError == null) {
-          FlutterError.reportError(FlutterErrorDetails(
-            exception: error,
-            stack: stackTrace,
-            library: 'loading_icon_button',
-            context: ErrorDescription('while running LoadingButton.onPressed'),
-          ));
-        }
+        _safeCallback(
+          () => widget.onSuccess?.call(),
+          'LoadingButton.onSuccess',
+        );
+        return;
+      }
+
+      final Object err = error;
+      final StackTrace stack = stackTrace ?? StackTrace.empty;
+      if (mounted) {
+        _setValue(LoadingButtonValue(
+          state: ActionState.error,
+          error: err,
+          stackTrace: stack,
+        ));
+      }
+      final void Function(Object, StackTrace)? onFailure = widget.onFailure;
+      // ignore: deprecated_member_use_from_same_package
+      final dynamic Function(dynamic)? onError = widget.onError;
+      if (onFailure == null && onError == null) {
+        FlutterError.reportError(FlutterErrorDetails(
+          exception: err,
+          stack: stack,
+          library: 'loading_icon_button',
+          context: ErrorDescription('while running LoadingButton.onPressed'),
+        ));
+        return;
+      }
+      if (onFailure != null) {
+        _safeCallback(
+          () => onFailure(err, stack),
+          'LoadingButton.onFailure',
+        );
+      }
+      if (onError != null) {
+        _safeCallback(() => onError(err), 'LoadingButton.onError');
       }
     } finally {
       _pressLatch = false;
@@ -449,7 +520,7 @@ class LoadingButtonState extends State<LoadingButton>
     final bool showDeterminate =
         _effectiveProgressStyle != LoadingProgressStyle.fill;
 
-    final Widget content = switch (_value.state) {
+    final Widget content = switch (_renderState) {
       ActionState.loading => widget.loadingWidget ??
           (widget.loadingText != null
               ? Text(widget.loadingText!)
@@ -487,7 +558,7 @@ class LoadingButtonState extends State<LoadingButton>
           (Widget child, Animation<double> animation) =>
               FadeTransition(opacity: animation, child: child),
       child: KeyedSubtree(
-        key: ValueKey<ActionState>(_value.state),
+        key: ValueKey<ActionState>(_renderState),
         child: labelled,
       ),
     );
@@ -505,7 +576,7 @@ class LoadingButtonState extends State<LoadingButton>
   ///
   /// Idle returns null so the button's own child provides its accessible name,
   /// rather than this widget inventing a second one.
-  String? _transientSemanticLabel() => switch (_value.state) {
+  String? _transientSemanticLabel() => switch (_renderState) {
         ActionState.loading => widget.loadingText ?? 'Loading',
         ActionState.success => widget.successText ?? 'Success',
         ActionState.error => widget.errorText ?? 'Error',
@@ -519,7 +590,7 @@ class LoadingButtonState extends State<LoadingButton>
     final LoadingButtonColors colors = _effectiveColors;
     final bool legacy =
         _effectiveColorStrategy == LoadingButtonColorStrategy.legacy;
-    return switch (_value.state) {
+    return switch (_renderState) {
       ActionState.loading => style?.loadingBackgroundColor ??
           colors.loading ??
           style?.backgroundColor ??
@@ -537,7 +608,7 @@ class LoadingButtonState extends State<LoadingButton>
     final LoadingButtonColors colors = _effectiveColors;
     final bool legacy =
         _effectiveColorStrategy == LoadingButtonColorStrategy.legacy;
-    return switch (_value.state) {
+    return switch (_renderState) {
       ActionState.disabled => style?.disabledForegroundColor ??
           (legacy ? Colors.grey.shade400 : null),
       ActionState.loading => colors.onLoading ??
@@ -557,9 +628,7 @@ class LoadingButtonState extends State<LoadingButton>
   // --- build ------------------------------------------------------------
 
   bool get _isEnabled =>
-      widget.enabled &&
-      _value.state == ActionState.idle &&
-      widget.onPressed != null;
+      _renderState == ActionState.idle && widget.onPressed != null;
 
   @override
   Widget build(BuildContext context) {

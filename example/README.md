@@ -50,9 +50,21 @@ in, and are listed in `.gitignore`. Three reasons:
 
 Nothing about the gallery is platform-specific — no plugins, no native code, no
 third-party dependencies at all — so `flutter create .` regenerates a correct,
-current runner for whichever platforms you want in a couple of seconds. It also
-rewrites `.metadata` to add a `migration:` section for the platforms you asked
-for; that edit is local scaffolding bookkeeping, so `git checkout -- .metadata`
+current runner for whichever platforms you want in a couple of seconds.
+
+It will try to edit two tracked files on the way. It rewrites `.metadata` to add
+a `migration:` section for the platforms you asked for, and it appends a
+`- <platform>/**` line to the `analyzer: exclude:` block of
+`analysis_options.yaml` for any platform it scaffolds. All six platform excludes
+are pre-listed in the checked-in `analysis_options.yaml` for exactly that
+reason, so today only `.metadata` actually changes — but revert both, in case a
+future Flutter adds a target that is not on the list. Either edit is local
+scaffolding bookkeeping, never something to commit:
+
+```sh
+git checkout -- .metadata analysis_options.yaml
+```
+
 before you commit anything else.
 
 CI does exactly this — see the `example` job in

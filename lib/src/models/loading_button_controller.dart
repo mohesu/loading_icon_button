@@ -39,6 +39,13 @@ class LoadingButtonValue {
   /// Whether [progress] is being reported.
   bool get isDeterminate => progress != null;
 
+  /// Returns a copy with the given fields replaced.
+  ///
+  /// Standard `copyWith` semantics apply, which is worth stating explicitly
+  /// for the nullable fields: passing `progress: null` KEEPS the current
+  /// progress, because null is indistinguishable from "not supplied". To drop
+  /// back to an indeterminate indicator pass `clearProgress: true`; likewise
+  /// `clearError: true` to forget [error] and [stackTrace].
   LoadingButtonValue copyWith({
     ActionState? state,
     double? progress,
@@ -180,17 +187,30 @@ class LoadingButtonController extends ValueNotifier<LoadingButtonValue> {
 
   /// Sets the phase directly. The escape hatch for states the named commands
   /// do not cover.
-  void setActionState(ActionState state, {double? progress}) =>
+  ///
+  /// Progress is preserved unless [progress] is given or [clearProgress] is
+  /// set — passing neither changes the phase and nothing else.
+  void setActionState(
+    ActionState state, {
+    double? progress,
+    bool clearProgress = false,
+  }) =>
       value = value.copyWith(
         state: state,
         progress: progress,
-        clearProgress: progress == null,
+        clearProgress: clearProgress,
       );
 
-  /// Runs the attached buttons' `onPressed`, exactly as a tap would.
+  /// Runs an attached button's `onPressed`, exactly as a tap would.
   ///
   /// Honours each button's press latch, so a programmatic press cannot race a
-  /// user's tap. Returns when every attached button's callback has settled.
+  /// user's tap. Returns when the callback has settled.
+  ///
+  /// With several buttons attached, only ONE run happens: they share this
+  /// controller's value, so the first button to accept the press moves the
+  /// value to [ActionState.loading] and the rest decline. Which button that is
+  /// follows attachment order, so attach one button per controller when it
+  /// matters.
   Future<void> press() async {
     if (_bindings.isEmpty) return;
     await Future.wait(<Future<void>>[
@@ -215,6 +235,8 @@ class LoadingButtonController extends ValueNotifier<LoadingButtonValue> {
     _cooldownTimer = Timer(duration, () {
       _cooldownUntil = null;
       _cooldownTimer = null;
+      // Only release a cooldown we are still holding; anything else has since
+      // taken over the value.
       if (value.state == ActionState.disabled) reset();
     });
   }
@@ -227,7 +249,10 @@ class LoadingButtonController extends ValueNotifier<LoadingButtonValue> {
   void dispose() {
     _cooldownTimer?.cancel();
     _cooldownTimer = null;
-    _bindings.clear();
+    // Bindings are NOT cleared here. Each button detaches itself when it is
+    // unmounted, so clearing would make [attachmentCount] report zero while
+    // buttons are still bound — hiding the misuse of disposing a controller
+    // that is still in use, which is exactly when you want to be told.
     super.dispose();
   }
 }

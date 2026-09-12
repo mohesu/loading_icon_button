@@ -387,14 +387,26 @@ void main() {
       expect(notifications.value, 1);
     });
 
-    test('setActionState() with no progress clears any existing progress', () {
+    test('setActionState() preserves progress unless asked to clear it', () {
       controller.start(progress: 0.8);
       notifications.value = 0;
 
+      // Changing only the phase must not silently discard progress.
       controller.setActionState(ActionState.disabled);
       expect(controller.state, ActionState.disabled);
-      expect(controller.progress, isNull);
+      expect(controller.progress, 0.8);
       expect(notifications.value, 1);
+
+      controller.setActionState(ActionState.disabled, clearProgress: true);
+      expect(controller.progress, isNull);
+      expect(notifications.value, 2);
+    });
+
+    test('setActionState() can set the phase and the progress together', () {
+      controller.start(progress: 0.2);
+      controller.setActionState(ActionState.loading, progress: 0.6);
+      expect(controller.state, ActionState.loading);
+      expect(controller.progress, 0.6);
     });
 
     test('setActionState() preserves the last error', () {
@@ -729,7 +741,55 @@ void main() {
 
       await controller.press();
       expect(calls, 0);
-      expect(controller.state, ActionState.disabled);
+      // `enabled` belongs to the widget, not to the shared value: a disabled
+      // button refuses the press without writing ActionState.disabled into a
+      // controller it may be sharing with enabled siblings.
+      expect(controller.state, ActionState.idle);
+      expect(
+        tester.widget<ElevatedButton>(find.byType(ElevatedButton)).onPressed,
+        isNull,
+      );
+    });
+
+    testWidgets(
+        'REGRESSION: a disabled button does not disable its siblings on the '
+        'same controller', (WidgetTester tester) async {
+      final LoadingButtonController controller = LoadingButtonController();
+      addTearDown(controller.dispose);
+      int calls = 0;
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: Column(
+            children: <Widget>[
+              LoadingButton(
+                controller: controller,
+                enabled: false,
+                enableHapticFeedback: false,
+                onPressed: () async => calls++,
+                child: const Text('disabled one'),
+              ),
+              LoadingButton(
+                controller: controller,
+                enableHapticFeedback: false,
+                onPressed: () async => calls++,
+                resetAfterDuration: false,
+                child: const Text('enabled one'),
+              ),
+            ],
+          ),
+        ),
+      ));
+
+      expect(controller.attachmentCount, 2);
+      expect(controller.state, ActionState.idle);
+
+      await controller.press();
+      await tester.pump();
+
+      // Exactly one run: the enabled sibling took it, and the shared value
+      // means only one run can be in flight at a time.
+      expect(calls, 1);
+      expect(controller.state, ActionState.success);
     });
 
     testWidgets('the button detaches from the controller when it is disposed',

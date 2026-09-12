@@ -69,12 +69,18 @@ extension ActionStateExtension on ActionState {
   ///
   /// ## Behaviour change in 1.1.0
   ///
-  /// Before 1.1.0 this was an exact duplicate of [isIdle] — it returned true
-  /// only for [ActionState.idle], which made it useless as a distinct
-  /// predicate and wrong for the terminal states. A button resting in
-  /// [ActionState.success] or [ActionState.error] is pressable, so those now
-  /// report true. If you relied on the old meaning, use [isIdle], which is
-  /// unchanged.
+  /// True when no run is in flight and the button is not disabled — that is,
+  /// for [ActionState.idle] and for the terminal [ActionState.success] and
+  /// [ActionState.error] states.
+  ///
+  /// This is NOT the same as "can be tapped right now". [LoadingButton] only
+  /// accepts a press from [ActionState.idle], and renders itself disabled
+  /// while it rests in a terminal state waiting for its reset window. Use
+  /// [isIdle] for tappability.
+  ///
+  /// Before 1.1.0 this was an exact duplicate of [isIdle], which made it
+  /// useless as a distinct predicate. If you relied on the old meaning, use
+  /// [isIdle], which is unchanged.
   bool get isInteractive =>
       this != ActionState.loading && this != ActionState.disabled;
 }

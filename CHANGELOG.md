@@ -68,6 +68,17 @@ Requires **Dart >=3.4.0 / Flutter >=3.22.0**. See the
 - `ActionStateExtension.isInteractive` now means "a press would be accepted"
   (`!loading && !disabled`) instead of being an exact duplicate of `isIdle`.
   Use `isIdle` for the old meaning.
+- **`ArgonTimerButton.loader` is now typed `Widget Function(int time)?`**, up
+  from `Function(int time)?`. This is a **source-breaking** narrowing: a closure
+  whose inferred return type was `dynamic` (for example one with a non-`Widget`
+  branch, or an untyped `=>` body the analyzer resolved to `dynamic`) no longer
+  assigns. Annotate the closure's return type as `Widget` — the value was always
+  used in a `child:` position, so no runtime behaviour changes.
+- **`ArgonButton` with a null `loader` now shows a default spinner** while busy.
+  It previously rendered nothing at all: `loader` was passed straight into a
+  `child:` position, where null is legal, so the button animated down to a pill
+  and sat there empty. If you relied on the empty pill, pass
+  `loader: const SizedBox.shrink()`.
 
 ### Fixed
 
@@ -82,10 +93,12 @@ Requires **Dart >=3.4.0 / Flutter >=3.22.0**. See the
   `Future.delayed`, so a disposed button no longer fires a stale reset.
 - `LoadingButton` reads `MediaQuery.sizeOf`, so it no longer rebuilds on every
   unrelated `MediaQuery` change.
-- `ArgonButton` no longer force-unwraps a nullable `onTap` or `loader`; a null
-  `onTap` renders the button disabled instead of throwing. The escaping
+- `ArgonButton` no longer force-unwraps its nullable `onTap`; a null `onTap`
+  renders the button disabled instead of throwing on the first tap. The escaping
   `startLoading`/`stopLoading` closures and the animation callbacks are
   `mounted`-guarded.
+- `ArgonTimerButton` no longer force-unwraps its nullable `loader`, which threw
+  as soon as the countdown started when no `loader` was given.
 - `ArgonTimerButton.startTimer` throws an `ArgumentError` instead of a bare
   `String`.
 - `buildChildWithIC` no longer pushes its label off the end of the row when the

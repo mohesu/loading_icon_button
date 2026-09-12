@@ -76,7 +76,14 @@ class OrbPainter extends CustomPainter {
     final int a = (alpha.clamp(0.0, 1.0) * 255).round();
     final Color? tint = color;
     if (tint != null) {
-      return tint.withAlpha((a * (1 - w)).round());
+      // Interpolating from a fully transparent copy of the tint scales the
+      // tint's OWN alpha, so a translucent tint stays translucent instead of
+      // being overwritten. Done with `Color.lerp` rather than by reading the
+      // alpha channel because the channel accessors differ across the Flutter
+      // versions this package supports: `.a` needs 3.27 and `.alpha` is
+      // deprecated in current stable, while `withAlpha` and `lerp` are clean
+      // on both ends of the range.
+      return Color.lerp(tint.withAlpha(0), tint, a / 255 * (1 - w))!;
     }
     final int g = ((dark ? 1 - w : w) * 255).round();
     return Color.fromARGB(a, g, g, g);
