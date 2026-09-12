@@ -8,8 +8,12 @@ issue_tracker: https://github.com/itsarvinddev/loading_icon_button/issues
 repository: https://github.com/itsarvinddev/loading_icon_button.git
 documentation: https://github.com/itsarvinddev/loading_icon_button/blob/master/README.md
 screenshots:
-  - description: "Loading buttons with idle, loading, success and error states"
-    path: generated-image.png
+  - description: >-
+      Three loading buttons running: a spinner, a thinking orb and a
+      determinate upload, with the nine orb states animating below
+    path: doc/hero.webp
+  - description: "Every button type in its idle, loading, success and error state"
+    path: doc/button-states-light.png
   - description: "The nine thinking-orb indicator states, at both tuned sizes"
     path: doc/thinking-orbs.png
 

@@ -25,13 +25,10 @@ part of '../../loading_icon_button.dart';
 ///   keep the old one until something else happens to rebuild them, so the
 ///   tree ends up in a half-reset state. A [ThemeExtension] change rebuilds
 ///   its dependents.
-/// * **The default widgets bake in [Colors.white].** [defaultLoadingWidget],
-///   [defaultSuccessWidget] and [defaultErrorWidget] are const widgets with a
-///   hard-coded white foreground. That is invisible on a light surface — on an
-///   [OutlinedButton] or a [TextButton], or on any filled button whose
-///   container colour is light. [LoadingButtonColors] and
-///   [LoadingButtonColorStrategy.material3] derive the foreground from the
-///   [ColorScheme] instead.
+/// * **It holds widgets, not colours.** The defaults now inherit the button's
+///   resolved foreground rather than hard-coding [Colors.white] (which was
+///   invisible on a light container), but they still cannot vary by subtree or
+///   by brightness. [LoadingButtonThemeData.successWidget] and friends can.
 ///
 /// Migrate by moving these values into a [LoadingButtonThemeData], installed
 /// either as a [ThemeExtension] on your [ThemeData] or with a
@@ -53,28 +50,20 @@ class LoadingButtonConfig {
   Duration defaultAnimationDuration = const Duration(milliseconds: 300);
 
   /// Default loading widget
-  Widget defaultLoadingWidget = const SizedBox(
-    width: 20,
-    height: 20,
-    child: CircularProgressIndicator(
-      strokeWidth: 2,
-      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-    ),
-  );
+  /// Inherits its colour and size from the enclosing [IconTheme], which every
+  /// Material button derives from its resolved foreground colour. Before 1.1.0
+  /// this hard-coded [Colors.white] and was invisible on a light container.
+  Widget defaultLoadingWidget = const _LoadingChild();
 
   /// Default success widget
-  Widget defaultSuccessWidget = const Icon(
-    Icons.check,
-    color: Colors.white,
-    size: 20,
-  );
+  /// Deliberately has no explicit colour, so it inherits the button's resolved
+  /// foreground instead of painting white on whatever container it lands on.
+  Widget defaultSuccessWidget = const Icon(Icons.check, size: 20);
 
   /// Default error widget
-  Widget defaultErrorWidget = const Icon(
-    Icons.error,
-    color: Colors.white,
-    size: 20,
-  );
+  /// Deliberately has no explicit colour, so it inherits the button's resolved
+  /// foreground instead of painting white on whatever container it lands on.
+  Widget defaultErrorWidget = const Icon(Icons.error, size: 20);
 
   /// Default button height
   double defaultHeight = 50.0;

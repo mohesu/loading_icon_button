@@ -27,6 +27,14 @@ doc/api/
 coverage/
 *.lcov
 
+# -------------------------------------------------------- screenshot assets
+# Only the three images named by `screenshots:` in pubspec.yaml have to be in
+# the archive. The README references every image by absolute GitHub URL, so the
+# rest would be dead weight in a package users download.
+doc/orbs.webp
+doc/families.png
+doc/button-states-dark.png
+
 # ------------------------------------------------------------------ test data
 # 610 KB of upstream golden vectors that only CI needs; the orb golden test
 # cannot run without them, so it is left out of the archive as well. Both are

@@ -22,7 +22,7 @@ import 'package:loading_icon_button/src/orbs/orb_presets.dart';
 /// README table instead.
 void main() {
   test('regenerate the thinking-orb contact sheet', () async {
-    const double scale = 2; // render at 2x for crisp display
+    const double scale = 3; // render at 3x for crisp display
     const double cell = 132;
     const double gutter = 10;
     const double orbBig = 72;
