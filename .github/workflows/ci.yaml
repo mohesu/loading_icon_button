@@ -29,6 +29,15 @@ jobs:
         with:
           channel: ${{ matrix.channel }}
           cache: true
+      # `dart format` picks its style from the package's resolved language
+      # version, so it MUST run after `pub get`. Without resolution it falls
+      # back to the SDK's own version and reformats the entire tree in the
+      # newer style, failing the check on code that is correctly formatted.
+      - name: Resolve package dependencies
+        run: flutter pub get
+      - name: Resolve example dependencies
+        run: flutter pub get
+        working-directory: example
       - name: Check formatting
         run: dart format --output none --set-exit-if-changed .
 
@@ -120,6 +129,13 @@ jobs:
           cache: true
       - name: Resolve package dependencies
         run: flutter pub get
+      # pana validates `screenshots:` by converting them with libwebp
+      # (webpinfo / cwebp / dwebp / gif2webp / webpmux). pub.dev's own analysis
+      # environment has these; a bare runner does not, and every screenshot
+      # then fails with "No such file or directory", costing the 10 example and
+      # screenshot points and making the score unrepresentative.
+      - name: Install libwebp
+        run: sudo apt-get update && sudo apt-get install -y webp
       - name: Install pana
         run: dart pub global activate pana
       - name: Score the package
