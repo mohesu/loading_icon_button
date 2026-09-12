@@ -1,6 +1,8 @@
 name: loading_icon_button
-description: Loading button with icon and text in Flutter. It's working on all flutter platforms. It's a simple way to show a loading button.
-version: 1.0.3
+description: >-
+  Flutter loading buttons with built-in idle, loading, success and error
+  states, plus animated thinking-orb indicators for AI and agent interfaces.
+version: 1.1.0
 homepage: https://itsarvind.dev/
 issue_tracker: https://github.com/itsarvinddev/loading_icon_button/issues
 repository: https://github.com/itsarvinddev/loading_icon_button.git
@@ -9,19 +11,38 @@ screenshots:
   - description: "Loading Icon Button"
     path: generated-image.png
 
+topics:
+  - button
+  - loading
+  - animation
+  - ui
+  - material-design
+
+# Pure Dart/Flutter: no dart:io, no platform channels, no plugin registration,
+# so every Flutter target is genuinely supported.
+platforms:
+  android:
+  ios:
+  linux:
+  macos:
+  web:
+  windows:
+
 environment:
-  sdk: ">=2.17.0 <4.0.0"
-  flutter: ">=1.17.0"
+  # WidgetStatesController / WidgetStatePropertyAll, used by the *LoadingButton
+  # widgets, landed in Flutter 3.22 (Dart 3.4). The package never built below
+  # that, despite what earlier releases declared.
+  sdk: ">=3.4.0 <4.0.0"
+  flutter: ">=3.22.0"
 
 dependencies:
   flutter:
     sdk: flutter
-  rxdart: ^0.28.0
 
 dev_dependencies:
+  flutter_lints: ^6.0.0
   flutter_test:
     sdk: flutter
-  flutter_lints: ^6.0.0
 
 flutter:
   uses-material-design: true

@@ -1,3 +1,19 @@
+# Generated platform scaffolding.
+#
+# The gallery is pure Dart, so the runner projects are not checked in: they go
+# stale, they differ per Flutter version, and `pub get` rewrites generated
+# files inside them (windows/flutter/generated_plugins.cmake), which makes
+# `flutter pub publish` complain that the working tree is dirty.
+#
+# Recreate whichever ones you need with:
+#   flutter create . --platforms=android,ios,web,macos,linux,windows
+android/
+ios/
+linux/
+macos/
+web/
+windows/
+
 # Miscellaneous
 *.class
 *.log
@@ -8,6 +24,7 @@
 .buildlog/
 .history
 .svn/
+migrate_working_dir/
 
 # IntelliJ related
 *.iml
@@ -22,25 +39,16 @@
 
 # Flutter/Dart/Pub related
 **/doc/api/
-**/ios/Flutter/.last_build_id
 .dart_tool/
 .flutter-plugins
 .flutter-plugins-dependencies
-.packages
 .pub-cache/
 .pub/
 /build/
-
-# Web related
-lib/generated_plugin_registrant.dart
+pubspec.lock
 
 # Symbolication related
 app.*.symbols
 
 # Obfuscation related
 app.*.map.json
-
-# Android Studio will place build artifacts here
-/android/app/debug
-/android/app/profile
-/android/app/release

@@ -1,0 +1,12 @@
+# Tests inherit the library's analysis configuration, minus two rules that are
+# pure noise in widget tests and that would otherwise require edits to the
+# golden-verified test/orbs/ suite.
+include: ../analysis_options.yaml
+
+linter:
+  rules:
+    # Widget tests build throwaway trees; const-ness there buys nothing and the
+    # rule fires inside test/orbs/, which is frozen.
+    prefer_const_constructors: false
+    # Tests reach into dynamic JSON fixtures and into private widget state.
+    avoid_dynamic_calls: false

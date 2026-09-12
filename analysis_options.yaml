@@ -1,4 +1,56 @@
+# Analysis configuration for the published library.
+#
+# The rule set is deliberately proportionate rather than maximal: a maximal set
+# produces 557 violations in lib/, most of them stylistic. What is enabled here
+# is everything that either found a real defect or costs nothing to keep clean,
+# and whose remaining violations could be fixed without touching the frozen
+# lib/src/orbs/ subtree. See test/analysis_options.yaml for the test-only
+# relaxations.
 include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  exclude:
+    - build/**
+  language:
+    # No implicit downcasts from dynamic, no implicitly raw or dynamic types.
+    # strict-casts caught a genuine bug: ArgonTimerButton.loader was typed
+    # `Function(int)?`, so it returned dynamic into a Widget position.
+    strict-casts: true
+    strict-inference: true
+    strict-raw-types: true
+
+linter:
+  rules:
+    # --- correctness ---------------------------------------------------------
+    - avoid_dynamic_calls
+    - avoid_slow_async_io
+    - cancel_subscriptions
+    - close_sinks
+    - literal_only_boolean_expressions
+    - no_adjacent_strings_in_list
+    - test_types_in_equals
+    - throw_in_finally
+    # This package hands user callbacks to timers and animation controllers;
+    # a dropped Future is the exact shape of the bug fixed in AutoLoadingButton.
+    - unawaited_futures
+    - unnecessary_await_in_return
+
+    # --- API hygiene ---------------------------------------------------------
+    - always_declare_return_types
+    - avoid_print
+    - use_enums
+    - use_setters_to_change_properties
+    - use_string_in_part_of_directives
+
+    # --- widget performance --------------------------------------------------
+    - prefer_const_constructors
+    - prefer_const_constructors_in_immutables
+    - prefer_const_literals_to_create_immutables
+    - prefer_final_locals
+
+    # --- consistency ---------------------------------------------------------
+    - prefer_single_quotes
+    - sort_pub_dependencies
 
 # Additional information about this file can be found at
 # https://dart.dev/guides/language/analysis-options

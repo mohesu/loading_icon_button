@@ -1,452 +1,191 @@
 import 'package:flutter/material.dart';
 import 'package:loading_icon_button/loading_icon_button.dart';
 
-void main() {
-  runApp(const MyApp());
+import 'pages/argon_page.dart';
+import 'pages/auto_loading_page.dart';
+import 'pages/loading_button_page.dart';
+import 'pages/orbs_page.dart';
+import 'pages/overview_page.dart';
+
+void main() => runApp(const GalleryApp());
+
+/// The gallery shell: Material 3, a seeded colour scheme, and a light/dark
+/// toggle so every demo can be checked in both brightnesses.
+class GalleryApp extends StatefulWidget {
+  const GalleryApp({super.key});
+
+  @override
+  State<GalleryApp> createState() => _GalleryAppState();
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({Key? key}) : super(key: key);
+class _GalleryAppState extends State<GalleryApp> {
+  ThemeMode _themeMode = ThemeMode.system;
+
+  void _toggleBrightness(Brightness current) {
+    setState(() {
+      _themeMode =
+          current == Brightness.dark ? ThemeMode.light : ThemeMode.dark;
+    });
+  }
+
+  /// One theme builder for both brightnesses.
+  ///
+  /// Note the [LoadingButtonThemeData] extension: it sets package-wide
+  /// defaults that resolve per brightness and rebuild their dependents, which
+  /// is what replaced the old process-wide `LoadingButtonConfig` singleton.
+  /// Individual demos below still override these per widget.
+  ThemeData _theme(Brightness brightness) {
+    final ColorScheme scheme = ColorScheme.fromSeed(
+      seedColor: const Color(0xFF4C5DF4),
+      brightness: brightness,
+    );
+    return ThemeData(
+      useMaterial3: true,
+      colorScheme: scheme,
+      extensions: const <ThemeExtension<dynamic>>[
+        LoadingButtonThemeData(
+          // The modern defaults. `LoadingButtonSizing.legacy` (a fixed 200x50
+          // box) is still the package default for backwards compatibility;
+          // new apps should opt into intrinsic sizing like this.
+          sizing: LoadingButtonSizing.intrinsic(),
+          colorStrategy: LoadingButtonColorStrategy.material3,
+          animationDuration: Duration(milliseconds: 250),
+        ),
+      ],
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Loading Icon Button Demo',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-        visualDensity: VisualDensity.adaptivePlatformDensity,
-      ),
-      home: const LoadingButtonDemo(),
+      title: 'loading_icon_button gallery',
+      debugShowCheckedModeBanner: false,
+      themeMode: _themeMode,
+      theme: _theme(Brightness.light),
+      darkTheme: _theme(Brightness.dark),
+      home: GalleryHome(onToggleBrightness: _toggleBrightness),
     );
   }
 }
 
-class LoadingButtonDemo extends StatefulWidget {
-  const LoadingButtonDemo({Key? key}) : super(key: key);
+/// A gallery destination: its label, its icons and the page it shows.
+class _Destination {
+  const _Destination(this.label, this.icon, this.selectedIcon);
 
-  @override
-  _LoadingButtonDemoState createState() => _LoadingButtonDemoState();
+  final String label;
+  final IconData icon;
+  final IconData selectedIcon;
 }
 
-class _LoadingButtonDemoState extends State<LoadingButtonDemo> {
-  // Progress tracking for the upload simulation
-  double _uploadProgress = 0.0;
-  bool _isUploading = false;
+const List<_Destination> _destinations = <_Destination>[
+  _Destination('Overview', Icons.dashboard_outlined, Icons.dashboard),
+  _Destination(
+      'LoadingButton', Icons.smart_button_outlined, Icons.smart_button),
+  _Destination('Auto-loading', Icons.autorenew_outlined, Icons.autorenew),
+  _Destination('Argon', Icons.swipe_left_outlined, Icons.swipe_left),
+  _Destination('Thinking orbs', Icons.blur_on_outlined, Icons.blur_on),
+];
+
+/// The navigation shell. A rail on wide windows, a bottom bar on narrow ones.
+class GalleryHome extends StatefulWidget {
+  const GalleryHome({super.key, required this.onToggleBrightness});
+
+  /// Called with the currently resolved brightness when the toggle is tapped.
+  final void Function(Brightness current) onToggleBrightness;
+
+  @override
+  State<GalleryHome> createState() => _GalleryHomeState();
+}
+
+class _GalleryHomeState extends State<GalleryHome> {
+  int _index = 0;
+
+  void _select(int index) => setState(() => _index = index);
+
+  Widget _page(int index) {
+    switch (index) {
+      case 1:
+        return const LoadingButtonPage();
+      case 2:
+        return const AutoLoadingPage();
+      case 3:
+        return const ArgonPage();
+      case 4:
+        return const OrbsPage();
+      case 0:
+      default:
+        return OverviewPage(onNavigate: _select);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Loading Icon Button Demo'),
-        elevation: 0,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            // 1. AutoLoadingButton (Material Design)
-            _buildSectionHeader('1. AutoLoadingButton (Material)'),
-            ElevatedAutoLoadingButton(
-              onPressed: () => _simulateAutoOperation(),
-              child: const Text('Auto Loading Button'),
-              style: ButtonStyle(
-                backgroundColor: WidgetStateProperty.all(Colors.purple),
-                foregroundColor: WidgetStateProperty.all(Colors.white),
-                shape: WidgetStateProperty.all(RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                )),
-                elevation: WidgetStateProperty.all(4),
-              ),
-            ),
-            const SizedBox(height: 30),
+    final Brightness brightness = Theme.of(context).brightness;
+    final bool isDark = brightness == Brightness.dark;
 
-            // 2. Material LoadingButton with Builder Pattern
-            _buildSectionHeader('2. Material LoadingButton (Builder)'),
-            LoadingButtonBuilder.filled()
-                .onPressed(() => _simulateUpload())
-                .child(const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.cloud_upload),
-                    SizedBox(width: 8),
-                    Text('Upload File'),
-                  ],
-                ))
-                .style(LoadingButtonStyle(
-                  backgroundColor: Colors.indigo,
-                  foregroundColor: Colors.white,
-                  loadingBackgroundColor: Colors.indigo.shade300,
-                  successBackgroundColor: Colors.green,
-                  errorBackgroundColor: Colors.red,
-                  borderRadius: 8,
-                  elevation: 2,
-                ))
-                .loadingText('Uploading...')
-                .successText('Uploaded!')
-                .errorText('Failed!')
-                .build(),
-            const SizedBox(height: 30),
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final bool wide = constraints.maxWidth >= 880;
 
-            // 3. Elevated LoadingButton
-            _buildSectionHeader('3. Elevated LoadingButton'),
-            LoadingButton(
-              type: ButtonType.elevated,
-              onPressed: () => _simulateLogin(),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.login),
-                  SizedBox(width: 8),
-                  Text('Login'),
-                ],
-              ),
-              style: const LoadingButtonStyle(
-                backgroundColor: Colors.blue,
-                foregroundColor: Colors.white,
-                borderRadius: 8,
-              ),
-              loadingText: 'Logging in...',
-              successText: 'Welcome!',
-              errorText: 'Login failed',
-              onError: (error) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Login error: $error'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
-              },
-            ),
-            const SizedBox(height: 30),
-
-            // 4. Outlined LoadingButton
-            _buildSectionHeader('4. Outlined LoadingButton'),
-            LoadingButtonBuilder.outlined()
-                .onPressed(() => _simulateDownload())
-                .child(const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.download),
-                    SizedBox(width: 8),
-                    Text('Download'),
-                  ],
-                ))
-                .style(const LoadingButtonStyle(
-                  borderColor: Colors.blue,
-                  borderWidth: 2,
-                  foregroundColor: Colors.blue,
-                  borderRadius: 25,
-                ))
-                .loadingText('Downloading...')
-                .successText('Downloaded!')
-                .errorText('Failed!')
-                .build(),
-            const SizedBox(height: 30),
-
-            // 5. Text Button Style
-            _buildSectionHeader('5. Text Button Style'),
-            LoadingButtonBuilder.text()
-                .onPressed(() => _simulateTextAction())
-                .child(const Text('Text Button'))
-                .style(const LoadingButtonStyle(
-                  foregroundColor: Colors.deepOrange,
-                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                ))
-                .loadingText('Loading...')
-                .successText('Done!')
-                .errorText('Error!')
-                .build(),
-            const SizedBox(height: 30),
-
-            // 6. Icon Button Style
-            _buildSectionHeader('6. Icon Button Style'),
-            LoadingButton(
-              type: ButtonType.icon,
-              onPressed: () => _simulateIconAction(),
-              child: const Icon(Icons.favorite),
-              style: const LoadingButtonStyle(
-                backgroundColor: Colors.red,
-                foregroundColor: Colors.white,
-                iconSize: 24,
-              ),
-              loadingWidget: const SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                ),
-              ),
-              successWidget: const Icon(Icons.check, color: Colors.white),
-              errorWidget: const Icon(Icons.error, color: Colors.white),
-              onError: (error) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Icon action failed'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
-              },
-            ),
-            const SizedBox(height: 30),
-
-            // 7. Custom Styled Button
-            _buildSectionHeader('7. Custom Styled Button'),
-            LoadingButton(
-              type: ButtonType.filled,
-              onPressed: () => _simulateCustomAction(),
-              child: const Text('Custom Button'),
-              style: LoadingButtonStyle(
-                backgroundColor: Colors.deepPurple,
-                foregroundColor: Colors.white,
-                loadingBackgroundColor: Colors.deepPurple.shade300,
-                successBackgroundColor: Colors.green,
-                errorBackgroundColor: Colors.red,
-                borderRadius: 30,
-                elevation: 8,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-              ),
-              loadingText: 'Processing...',
-              successText: 'Success!',
-              errorText: 'Try Again',
-              width: double.infinity,
-              height: 60,
-              onStateChanged: (state) {
-                print('Button state changed to: $state');
-              },
-            ),
-            const SizedBox(height: 30),
-
-            // 8. Submit Form Button
-            _buildSectionHeader('8. Submit Form Button'),
-            LoadingButton(
-              type: ButtonType.elevated,
-              onPressed: () => _simulateFormSubmit(),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.send),
-                  SizedBox(width: 8),
-                  Text('Submit Form'),
-                ],
-              ),
-              style: const LoadingButtonStyle(
-                backgroundColor: Colors.teal,
-                foregroundColor: Colors.white,
-                borderRadius: 12,
-                elevation: 4,
-              ),
-              loadingWidget: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+        final Widget body = Row(
+          children: <Widget>[
+            if (wide)
+              NavigationRail(
+                selectedIndex: _index,
+                onDestinationSelected: _select,
+                labelType: NavigationRailLabelType.all,
+                destinations: <NavigationRailDestination>[
+                  for (final _Destination d in _destinations)
+                    NavigationRailDestination(
+                      icon: Icon(d.icon),
+                      selectedIcon: Icon(d.selectedIcon),
+                      label: Text(d.label),
                     ),
-                  ),
-                  SizedBox(width: 8),
-                  Text('Submitting...'),
                 ],
               ),
-              successWidget: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.check_circle, size: 18),
-                  SizedBox(width: 8),
-                  Text('Submitted!'),
-                ],
-              ),
-              errorWidget: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.error, size: 18),
-                  SizedBox(width: 8),
-                  Text('Failed!'),
-                ],
+            if (wide) const VerticalDivider(width: 1),
+            Expanded(
+              // A key per index so switching pages rebuilds from scratch
+              // rather than reusing the previous page's element tree.
+              child: KeyedSubtree(
+                key: ValueKey<int>(_index),
+                child: _page(_index),
               ),
             ),
-            const SizedBox(height: 30),
-
-            // 9. Button with Progress Indicator Below (0% to 100%)
-            _buildSectionHeader('9. Button with Progress Indicator Below'),
-            LoadingButton(
-              type: ButtonType.elevated,
-              onPressed: () => _simulateUploadWithProgress(),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.cloud_upload_outlined),
-                  SizedBox(width: 8),
-                  Text('Upload with Progress'),
-                ],
-              ),
-              style: const LoadingButtonStyle(
-                backgroundColor: Colors.green,
-                foregroundColor: Colors.white,
-                borderRadius: 12,
-                elevation: 4,
-              ),
-              loadingWidget: CircularProgressIndicator(
-                value: _uploadProgress, // Progress from 0.0 to 1.0
-                strokeWidth: 4,
-                valueColor: const AlwaysStoppedAnimation<Color>(Colors.green),
-                backgroundColor: Colors.grey.shade300,
-              ),
-              successWidget: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.check_circle, size: 18),
-                  SizedBox(width: 8),
-                  Text('Uploaded!'),
-                ],
-              ),
-              errorWidget: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.error, size: 18),
-                  SizedBox(width: 8),
-                  Text('Failed!'),
-                ],
-              ),
-            ),
-            const SizedBox(height: 40),
           ],
-        ),
-      ),
+        );
+
+        return Scaffold(
+          appBar: AppBar(
+            title: Text(_destinations[_index].label),
+            actions: <Widget>[
+              IconButton(
+                key: const Key('theme-toggle'),
+                tooltip:
+                    isDark ? 'Switch to light theme' : 'Switch to dark theme',
+                icon: Icon(isDark ? Icons.light_mode : Icons.dark_mode),
+                onPressed: () => widget.onToggleBrightness(brightness),
+              ),
+              const SizedBox(width: 4),
+            ],
+          ),
+          body: SafeArea(child: body),
+          bottomNavigationBar: wide
+              ? null
+              : NavigationBar(
+                  selectedIndex: _index,
+                  onDestinationSelected: _select,
+                  destinations: <NavigationDestination>[
+                    for (final _Destination d in _destinations)
+                      NavigationDestination(
+                        icon: Icon(d.icon),
+                        selectedIcon: Icon(d.selectedIcon),
+                        label: d.label,
+                      ),
+                  ],
+                ),
+        );
+      },
     );
-  }
-
-  Widget _buildSectionHeader(String title) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Text(
-        title,
-        style: TextStyle(
-          fontSize: 18,
-          fontWeight: FontWeight.w600,
-          color: Colors.grey[700],
-        ),
-      ),
-    );
-  }
-
-  // Simulation methods
-  Future<void> _simulateLogin() async {
-    await Future.delayed(const Duration(seconds: 2));
-
-    // Simulate random success/failure
-    if (DateTime.now().millisecondsSinceEpoch % 3 == 0) {
-      throw Exception('Invalid credentials');
-    }
-    // Success is automatic if no exception is thrown
-  }
-
-  Future<void> _simulateAutoOperation() async {
-    await Future.delayed(const Duration(seconds: 2));
-
-    // Simulate random success/failure
-    if (DateTime.now().millisecondsSinceEpoch % 3 == 0) {
-      throw Exception('Auto operation failed');
-    }
-    // Success is automatic
-  }
-
-  Future<void> _simulateUpload() async {
-    await Future.delayed(const Duration(seconds: 3));
-
-    // Simulate random success/failure
-    if (DateTime.now().millisecondsSinceEpoch % 5 == 0) {
-      throw Exception('Upload failed');
-    }
-    // Success is automatic
-  }
-
-  Future<void> _simulateDownload() async {
-    await Future.delayed(const Duration(milliseconds: 2000));
-
-    // Simulate random success/failure
-    if (DateTime.now().millisecondsSinceEpoch % 4 == 0) {
-      throw Exception('Download failed');
-    }
-    // Success is automatic
-  }
-
-  Future<void> _simulateTextAction() async {
-    await Future.delayed(const Duration(milliseconds: 1000));
-
-    // Simulate random success/failure
-    if (DateTime.now().millisecondsSinceEpoch % 3 == 0) {
-      throw Exception('Text action failed');
-    }
-  }
-
-  Future<void> _simulateIconAction() async {
-    await Future.delayed(const Duration(milliseconds: 800));
-
-    // Simulate random success/failure
-    if (DateTime.now().millisecondsSinceEpoch % 4 == 0) {
-      throw Exception('Icon action failed');
-    }
-  }
-
-  Future<void> _simulateCustomAction() async {
-    await Future.delayed(const Duration(milliseconds: 1500));
-
-    // Simulate random success/failure
-    if (DateTime.now().millisecondsSinceEpoch % 3 == 0) {
-      throw Exception('Custom action failed');
-    }
-  }
-
-  Future<void> _simulateFormSubmit() async {
-    await Future.delayed(const Duration(seconds: 2));
-
-    // Simulate random success/failure
-    if (DateTime.now().millisecondsSinceEpoch % 4 == 0) {
-      throw Exception('Form submission failed');
-    }
-  }
-
-  Future<void> _simulateUploadWithProgress() async {
-    setState(() {
-      _isUploading = true;
-      _uploadProgress = 0.0;
-    });
-
-    try {
-      // Simulate progress from 0% to 100% over 5 seconds
-      const totalDuration = Duration(seconds: 5);
-      const steps = 20; // Number of progress updates
-      final stepDuration = totalDuration.inMilliseconds ~/ steps;
-
-      for (int i = 1; i <= steps; i++) {
-        await Future.delayed(Duration(milliseconds: stepDuration));
-        setState(() {
-          _uploadProgress = i / steps;
-        });
-      }
-
-      // Simulate random failure after progress
-      if (DateTime.now().millisecondsSinceEpoch % 3 == 0) {
-        throw Exception('Upload failed after progress');
-      }
-      // Success is automatic if no exception
-    } catch (e) {
-      // The button will handle the error state automatically
-      rethrow; // Rethrow to let the button catch it
-    } finally {
-      // Reset progress after completion (success or error)
-      await Future.delayed(
-          const Duration(seconds: 2)); // Wait for success/error display
-      setState(() {
-        _isUploading = false;
-        _uploadProgress = 0.0;
-      });
-    }
   }
 }

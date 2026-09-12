@@ -1,8 +1,30 @@
-part of '../../loading_icon_button.dart';
+part of '../loading_icon_button.dart';
 
-/// A customizable loading button with different states and animations
+/// A button that runs an async callback and shows its progress.
+///
+/// [LoadingButton] owns a small state machine — [ActionState.idle] to
+/// [ActionState.loading] to [ActionState.success] or [ActionState.error], and
+/// back to idle — and renders one of the five Material button types
+/// ([ButtonType]) for it.
+///
+/// ```dart
+/// LoadingButton(
+///   onPressed: () async => api.submit(),
+///   child: const Text('Submit'),
+///   onFailure: (Object error, StackTrace stack) => report(error, stack),
+/// )
+/// ```
+///
+/// Pass a [controller] to drive the state from outside, [progress] to show a
+/// determinate indicator, and [indicator] to swap the spinner for a
+/// [ThinkingOrb] or anything else. Defaults for all of those can be set for a
+/// whole subtree with [LoadingButtonTheme].
+///
+/// Repeat presses are rejected while a run is in flight, including during the
+/// press animation, so an async callback cannot be started twice by a fast
+/// double tap.
 class LoadingButton extends StatefulWidget {
-  /// Creates a LoadingButton
+  /// Creates a LoadingButton.
   const LoadingButton({
     super.key,
     this.type = ButtonType.elevated,
@@ -12,382 +34,705 @@ class LoadingButton extends StatefulWidget {
     this.successWidget,
     this.errorWidget,
     this.style,
+    this.buttonStyle,
     this.animationDuration,
     this.successDuration,
     this.errorDuration,
     this.width,
     this.height,
+    this.sizing,
     this.loadingText,
     this.successText,
     this.errorText,
     this.resetAfterDuration = true,
     this.enableHapticFeedback,
+    @Deprecated(
+      'Use onFailure, which also receives the StackTrace. '
+      'This feature was deprecated after v1.1.0.',
+    )
     this.onError,
+    this.onFailure,
+    this.onSuccess,
     this.onStateChanged,
-  });
+    this.controller,
+    this.indicator,
+    this.progress,
+    this.progressStyle,
+    this.colors,
+    this.colorStrategy,
+    this.enabled = true,
+    this.debounce,
+    this.cooldown,
+    this.focusNode,
+    this.autofocus = false,
+    this.tooltip,
+    this.transitionBuilder,
+  }) : assert(
+          progress == null || (progress >= 0.0 && progress <= 1.0),
+          'progress must be null (indeterminate) or within 0.0..1.0',
+        );
 
-  /// The type of button to create
+  /// Which Material button to render.
   final ButtonType type;
 
-  /// Called when the button is pressed
+  /// Called when the button is pressed.
+  ///
+  /// The button stays in [ActionState.loading] until the returned future
+  /// settles. If it throws, the button shows [ActionState.error] and
+  /// [onFailure] is called.
   final AsyncCallback? onPressed;
 
-  /// The widget to display when the button is in idle state
+  /// Shown in [ActionState.idle].
   final Widget? child;
 
-  /// The widget to display when the button is loading
+  /// Shown while loading. Wins over [indicator] and the theme.
   final Widget? loadingWidget;
 
-  /// The widget to display when the button is in success state
+  /// Shown on success. Wins over the theme.
   final Widget? successWidget;
 
-  /// The widget to display when the button is in error state
+  /// Shown on failure. Wins over the theme.
   final Widget? errorWidget;
 
-  /// The style configuration for the button
+  /// Package-specific style overrides.
+  ///
+  /// For anything Material already models, prefer [buttonStyle].
   final LoadingButtonStyle? style;
 
-  /// Duration for animations
+  /// A standard Material [ButtonStyle], passed through to the underlying
+  /// button. Applied first; [style] and the state colours layer on top.
+  final ButtonStyle? buttonStyle;
+
+  /// Duration of state-change transitions.
   final Duration? animationDuration;
 
-  /// Duration to show success state
+  /// How long [ActionState.success] is held before resetting.
   final Duration? successDuration;
 
-  /// Duration to show error state
+  /// How long [ActionState.error] is held before resetting.
   final Duration? errorDuration;
 
-  /// Width of the button
+  /// Fixed width. Overrides whatever [sizing] computes.
   final double? width;
 
-  /// Height of the button
+  /// Fixed height. Overrides whatever [sizing] computes.
   final double? height;
 
-  /// Text to display during loading
+  /// How the button decides its size.
+  ///
+  /// Defaults to [LoadingButtonSizing.legacy] — a fixed 200x50 box — for
+  /// backwards compatibility. New code should prefer
+  /// [LoadingButtonSizing.intrinsic].
+  final LoadingButtonSizing? sizing;
+
+  /// Accessible description and, when no [loadingWidget] is set, the label
+  /// shown while loading.
   final String? loadingText;
 
-  /// Text to display on success
+  /// Accessible description and, when no [successWidget] is set, the label
+  /// shown on success.
   final String? successText;
 
-  /// Text to display on error
+  /// Accessible description and, when no [errorWidget] is set, the label shown
+  /// on failure.
   final String? errorText;
 
-  /// Whether to reset to idle state after success/error duration
+  /// Whether to return to idle after the success or error window elapses.
+  ///
+  /// When false the button stays in its terminal state; drive it back with a
+  /// [controller] or by rebuilding.
   final bool resetAfterDuration;
 
-  /// Whether to enable haptic feedback
+  /// Whether a press fires haptic feedback.
   final bool? enableHapticFeedback;
 
-  /// Called when an error occurs
-  final Function(dynamic)? onError;
+  /// Called when [onPressed] throws.
+  @Deprecated(
+    'Use onFailure, which also receives the StackTrace. '
+    'This feature was deprecated after v1.1.0.',
+  )
+  final void Function(dynamic)? onError;
 
-  /// Called when the button state changes
-  final Function(ActionState)? onStateChanged;
+  /// Called when [onPressed] throws, with the error and its stack trace.
+  final void Function(Object error, StackTrace stackTrace)? onFailure;
+
+  /// Called when [onPressed] completes without throwing.
+  final VoidCallback? onSuccess;
+
+  /// Called whenever the state changes. Not called for the initial state.
+  final void Function(ActionState state)? onStateChanged;
+
+  /// Drives the button's state from outside the widget tree.
+  final LoadingButtonController? controller;
+
+  /// What to show while loading. Overridden by [loadingWidget].
+  final LoadingIndicator? indicator;
+
+  /// Determinate progress in 0.0..1.0, or null for indeterminate.
+  ///
+  /// A [controller]'s progress wins over this when one is attached.
+  final double? progress;
+
+  /// How determinate progress is rendered.
+  final LoadingProgressStyle? progressStyle;
+
+  /// Per-state colours.
+  final LoadingButtonColors? colors;
+
+  /// Where colours come from.
+  final LoadingButtonColorStrategy? colorStrategy;
+
+  /// Whether the button accepts presses. False shows [ActionState.disabled].
+  final bool enabled;
+
+  /// Ignore taps arriving within this long of the previously accepted tap.
+  final Duration? debounce;
+
+  /// Hold the button disabled for this long after a run completes.
+  final Duration? cooldown;
+
+  /// {@macro flutter.widgets.Focus.focusNode}
+  final FocusNode? focusNode;
+
+  /// {@macro flutter.widgets.Focus.autofocus}
+  final bool autofocus;
+
+  /// Tooltip shown on hover and long-press.
+  final String? tooltip;
+
+  /// Wraps the per-state child, for a custom transition. Defaults to a cross
+  /// fade.
+  final Widget Function(Widget child, Animation<double> animation)?
+      transitionBuilder;
 
   @override
-  State<LoadingButton> createState() => _LoadingButtonState();
+  State<LoadingButton> createState() => LoadingButtonState();
 }
 
-class _LoadingButtonState extends State<LoadingButton>
-    with TickerProviderStateMixin {
-  late final AnimationController _animationController;
-  late final AnimationController _scaleController;
-  late final BehaviorSubject<ActionState> _stateSubject;
+/// The [State] for a [LoadingButton].
+///
+/// Exposed so a `GlobalKey<LoadingButtonState>` can reach [press] and
+/// [currentState], but a [LoadingButtonController] is usually the better tool.
+class LoadingButtonState extends State<LoadingButton>
+    implements _LoadingButtonBinding {
+  late final ValueNotifier<LoadingButtonValue> _internal =
+      ValueNotifier<LoadingButtonValue>(LoadingButtonValue.idle);
 
-  final LoadingButtonConfig _config = LoadingButtonConfig();
+  Timer? _resetTimer;
 
-  ActionState _currentState = ActionState.idle;
+  /// Guards the whole press path synchronously, before the first await, so a
+  /// double tap cannot start two runs.
+  bool _pressLatch = false;
+
+  DateTime? _lastAcceptedPress;
+
+  ValueNotifier<LoadingButtonValue> get _notifier =>
+      widget.controller ?? _internal;
+
+  LoadingButtonValue get _value => _notifier.value;
+
+  /// The button's current phase.
+  ActionState get currentState => _value.state;
 
   @override
   void initState() {
     super.initState();
+    widget.controller?._attach(this);
+    _notifier.addListener(_onValueChanged);
+    if (!widget.enabled) {
+      _notifier.value = _value.copyWith(state: ActionState.disabled);
+    }
+  }
 
-    _animationController = AnimationController(
-      duration: widget.animationDuration ?? _config.defaultAnimationDuration,
-      vsync: this,
-    );
-
-    _scaleController = AnimationController(
-      duration: const Duration(milliseconds: 100),
-      vsync: this,
-    );
-
-    _stateSubject = BehaviorSubject<ActionState>.seeded(ActionState.idle);
-
-    // Listen to state changes
-    _stateSubject.stream.listen((state) {
-      if (mounted) {
-        setState(() {
-          _currentState = state;
-        });
-
-        widget.onStateChanged?.call(state);
-
-        _handleStateAnimation(state);
-      }
-    });
+  @override
+  void didUpdateWidget(LoadingButton oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final LoadingButton old = oldWidget;
+    if (old.controller != widget.controller) {
+      old.controller?._detach(this);
+      (old.controller ?? _internal).removeListener(_onValueChanged);
+      widget.controller?._attach(this);
+      _notifier.addListener(_onValueChanged);
+    }
+    if (old.enabled != widget.enabled && !_value.isLoading) {
+      _notifier.value = _value.copyWith(
+        state: widget.enabled ? ActionState.idle : ActionState.disabled,
+      );
+    }
   }
 
   @override
   void dispose() {
-    _animationController.dispose();
-    _scaleController.dispose();
-    _stateSubject.close();
+    _resetTimer?.cancel();
+    _resetTimer = null;
+    widget.controller?._detach(this);
+    _notifier.removeListener(_onValueChanged);
+    _internal.dispose();
     super.dispose();
   }
 
-  void _handleStateAnimation(ActionState state) {
-    switch (state) {
-      case ActionState.loading:
-        _animationController.repeat();
-        break;
-      case ActionState.success:
-        _animationController.forward();
-        _scheduleReset(
-            widget.successDuration ?? _config.defaultSuccessDuration);
-        break;
-      case ActionState.error:
-        _animationController.forward();
-        _scheduleReset(widget.errorDuration ?? _config.defaultErrorDuration);
-        break;
-      case ActionState.idle:
-      case ActionState.disabled:
-        _animationController.reset();
-        break;
-    }
+  void _onValueChanged() {
+    if (!mounted) return;
+    setState(() {});
+    widget.onStateChanged?.call(_value.state);
+    _scheduleReset(_value.state);
   }
 
-  void _scheduleReset(Duration duration) {
-    if (widget.resetAfterDuration) {
-      Future.delayed(duration, () {
-        if (mounted) {
-          _stateSubject.add(ActionState.idle);
+  void _setValue(LoadingButtonValue value) {
+    if (!mounted) return;
+    _notifier.value = value;
+  }
+
+  void _scheduleReset(ActionState state) {
+    _resetTimer?.cancel();
+    _resetTimer = null;
+    if (!widget.resetAfterDuration) return;
+    final Duration? window = switch (state) {
+      ActionState.success => _effectiveSuccessDuration,
+      ActionState.error => _effectiveErrorDuration,
+      _ => null,
+    };
+    if (window == null) return;
+    _resetTimer = Timer(window, () {
+      _resetTimer = null;
+      if (!mounted) return;
+      // Only reset if we are still in the state that scheduled this.
+      if (_value.state != state) return;
+      final Duration cooldown = _effectiveCooldown;
+      if (cooldown > Duration.zero) {
+        final LoadingButtonController? controller = widget.controller;
+        if (controller != null) {
+          controller.startCooldown(cooldown);
+        } else {
+          _setValue(const LoadingButtonValue(state: ActionState.disabled));
+          _resetTimer = Timer(cooldown, () {
+            _resetTimer = null;
+            if (mounted) _setValue(LoadingButtonValue.idle);
+          });
         }
-      });
-    }
+        return;
+      }
+      _setValue(
+        widget.enabled
+            ? LoadingButtonValue.idle
+            : const LoadingButtonValue(state: ActionState.disabled),
+      );
+    });
   }
 
-  Future<void> _handlePress() async {
-    if (_currentState != ActionState.idle) return;
+  /// Runs [LoadingButton.onPressed] exactly as a tap would.
+  Future<void> press() => _invokePressed();
 
-    // Haptic feedback
-    if (widget.enableHapticFeedback ?? _config.enableHapticFeedback) {
-      await HapticFeedback.lightImpact();
+  @override
+  Future<void> _invokePressed() async {
+    // Synchronous latch FIRST: every early return below must leave it clear,
+    // and nothing may await before it is set.
+    if (_pressLatch) return;
+    if (_value.state != ActionState.idle) return;
+    if (!widget.enabled) return;
+
+    final Duration debounce = _effectiveDebounce;
+    if (debounce > Duration.zero) {
+      final DateTime? last = _lastAcceptedPress;
+      if (last != null && DateTime.now().difference(last) < debounce) return;
     }
 
-    // Scale animation
-    await _scaleController.forward();
-    await _scaleController.reverse();
+    final AsyncCallback? onPressed = widget.onPressed;
+    if (onPressed == null) return;
 
-    if (widget.onPressed == null) return;
-
+    _pressLatch = true;
+    _lastAcceptedPress = DateTime.now();
     try {
-      _stateSubject.add(ActionState.loading);
-      await widget.onPressed?.call();
-      if (mounted) {
-        _stateSubject.add(ActionState.success);
+      // Fire and forget: awaiting the platform channel would delay the user's
+      // callback by a round trip, and on a test binding it never resolves.
+      if (_effectiveHaptics) {
+        unawaited(HapticFeedback.lightImpact());
       }
-    } catch (error) {
-      if (mounted) {
-        _stateSubject.add(ActionState.error);
-      }
-      widget.onError?.call(error);
 
-      if (_config.debugMode) {
-        debugPrint('LoadingButton Error: $error');
+      _setValue(const LoadingButtonValue(state: ActionState.loading));
+      try {
+        await onPressed();
+        if (!mounted) return;
+        _setValue(const LoadingButtonValue(state: ActionState.success));
+        widget.onSuccess?.call();
+      } catch (error, stackTrace) {
+        if (mounted) {
+          _setValue(LoadingButtonValue(
+            state: ActionState.error,
+            error: error,
+            stackTrace: stackTrace,
+          ));
+        }
+        widget.onFailure?.call(error, stackTrace);
+        // ignore: deprecated_member_use_from_same_package
+        widget.onError?.call(error);
+        if (widget.onFailure == null && widget.onError == null) {
+          FlutterError.reportError(FlutterErrorDetails(
+            exception: error,
+            stack: stackTrace,
+            library: 'loading_icon_button',
+            context: ErrorDescription('while running LoadingButton.onPressed'),
+          ));
+        }
       }
+    } finally {
+      _pressLatch = false;
     }
   }
+
+  // --- resolved configuration ------------------------------------------
+
+  LoadingButtonThemeData get _theme => LoadingButtonThemeData.of(context);
+
+  // ignore: deprecated_member_use_from_same_package
+  LoadingButtonConfig get _config => LoadingButtonConfig();
+
+  Duration get _effectiveAnimationDuration =>
+      widget.animationDuration ??
+      _theme.animationDuration ??
+      _config.defaultAnimationDuration;
+
+  Duration get _effectiveSuccessDuration =>
+      widget.successDuration ??
+      _theme.successDuration ??
+      _config.defaultSuccessDuration;
+
+  Duration get _effectiveErrorDuration =>
+      widget.errorDuration ??
+      _theme.errorDuration ??
+      _config.defaultErrorDuration;
+
+  bool get _effectiveHaptics =>
+      widget.enableHapticFeedback ??
+      _theme.enableHapticFeedback ??
+      _config.enableHapticFeedback;
+
+  Duration get _effectiveDebounce =>
+      widget.debounce ?? _theme.debounce ?? Duration.zero;
+
+  Duration get _effectiveCooldown =>
+      widget.cooldown ?? _theme.cooldown ?? Duration.zero;
+
+  LoadingButtonSizing get _effectiveSizing =>
+      widget.sizing ?? _theme.sizing ?? LoadingButtonSizing.legacy;
+
+  LoadingProgressStyle get _effectiveProgressStyle =>
+      widget.progressStyle ??
+      _theme.progressStyle ??
+      LoadingProgressStyle.indicator;
+
+  LoadingButtonColorStrategy get _effectiveColorStrategy =>
+      widget.colorStrategy ??
+      _theme.colorStrategy ??
+      LoadingButtonColorStrategy.legacy;
+
+  LoadingButtonColors get _effectiveColors {
+    final LoadingButtonColors? explicit = widget.colors ?? _theme.colors;
+    if (explicit != null) return explicit;
+    return switch (_effectiveColorStrategy) {
+      LoadingButtonColorStrategy.legacy => LoadingButtonColors.legacy,
+      LoadingButtonColorStrategy.material3 =>
+        LoadingButtonColors.fromScheme(Theme.of(context).colorScheme),
+    };
+  }
+
+  double? get _effectiveProgress =>
+      widget.controller != null ? _value.progress : widget.progress;
+
+  double get _borderRadius =>
+      widget.style?.borderRadius ?? _config.defaultBorderRadius;
+
+  // --- child ------------------------------------------------------------
 
   Widget _buildChild() {
-    switch (_currentState) {
-      case ActionState.loading:
-        return widget.loadingWidget ??
-            (widget.loadingText != null
-                ? Text(widget.loadingText!)
-                : _config.defaultLoadingWidget);
-      case ActionState.success:
-        return widget.successWidget ??
-            (widget.successText != null
-                ? Text(widget.successText!)
-                : _config.defaultSuccessWidget);
-      case ActionState.error:
-        return widget.errorWidget ??
-            (widget.errorText != null
-                ? Text(widget.errorText!)
-                : _config.defaultErrorWidget);
-      case ActionState.idle:
-      case ActionState.disabled:
-        return widget.child ?? const SizedBox.shrink();
-    }
-  }
+    final double? progress = _effectiveProgress;
+    final bool showDeterminate =
+        _effectiveProgressStyle != LoadingProgressStyle.fill;
 
-  Color _getBackgroundColor() {
-    final style = widget.style;
-    switch (_currentState) {
-      case ActionState.loading:
-        return style?.loadingBackgroundColor ??
-            style?.backgroundColor ??
-            Theme.of(context).primaryColor;
-      case ActionState.success:
-        return style?.successBackgroundColor ?? Colors.green;
-      case ActionState.error:
-        return style?.errorBackgroundColor ?? Colors.red;
-      case ActionState.disabled:
-        return style?.disabledBackgroundColor ?? Colors.grey;
-      case ActionState.idle:
-        return style?.backgroundColor ?? Theme.of(context).primaryColor;
-    }
-  }
+    final Widget content = switch (_value.state) {
+      ActionState.loading => widget.loadingWidget ??
+          (widget.loadingText != null
+              ? Text(widget.loadingText!)
+              : (widget.indicator ?? _theme.indicator)?.build(context,
+                      progress: showDeterminate ? progress : null) ??
+                  _defaultLoadingWidget(showDeterminate ? progress : null)),
+      ActionState.success => widget.successWidget ??
+          (widget.successText != null
+              ? Text(widget.successText!)
+              : _theme.successWidget ?? _config.defaultSuccessWidget),
+      ActionState.error => widget.errorWidget ??
+          (widget.errorText != null
+              ? Text(widget.errorText!)
+              : _theme.errorWidget ?? _config.defaultErrorWidget),
+      ActionState.idle ||
+      ActionState.disabled =>
+        widget.child ?? const SizedBox.shrink(),
+    };
 
-  Color _getForegroundColor() {
-    final style = widget.style;
-    switch (_currentState) {
-      case ActionState.disabled:
-        return style?.disabledForegroundColor ?? Colors.grey.shade400;
-      default:
-        return style?.foregroundColor ?? Colors.white;
-    }
-  }
+    final String? label = _transientSemanticLabel();
+    final Widget labelled = label == null
+        ? content
+        : Semantics(
+            label: label,
+            liveRegion: true,
+            // The label already says everything; keeping the child's own
+            // semantics too would announce it twice.
+            excludeSemantics: true,
+            child: content,
+          );
 
-  Widget _buildButton() {
-    final screenSize = MediaQuery.of(context).size;
-    final isTablet = screenSize.width > 600;
-
-    final buttonWidth = widget.width ??
-        (isTablet ? _config.defaultWidth * 1.2 : _config.defaultWidth);
-    final buttonHeight = widget.height ?? _config.defaultHeight;
-
-    return AnimatedBuilder(
-      animation: _scaleController,
-      builder: (context, child) {
-        return Transform.scale(
-          scale: 1.0 - (_scaleController.value * 0.05),
-          child: AnimatedContainer(
-            duration:
-                widget.animationDuration ?? _config.defaultAnimationDuration,
-            width: buttonWidth,
-            height: buttonHeight,
-            child: child,
-          ),
-        );
-      },
-      child: _buildButtonByType(),
+    return AnimatedSwitcher(
+      duration: _effectiveAnimationDuration,
+      transitionBuilder: widget.transitionBuilder ??
+          (Widget child, Animation<double> animation) =>
+              FadeTransition(opacity: animation, child: child),
+      child: KeyedSubtree(
+        key: ValueKey<ActionState>(_value.state),
+        child: labelled,
+      ),
     );
   }
 
+  Widget _defaultLoadingWidget(double? progress) {
+    if (progress == null) return _config.defaultLoadingWidget;
+    return SizedBox.square(
+      dimension: 20,
+      child: CircularProgressIndicator(value: progress, strokeWidth: 2),
+    );
+  }
+
+  /// A description for the states whose visual is not self-describing.
+  ///
+  /// Idle returns null so the button's own child provides its accessible name,
+  /// rather than this widget inventing a second one.
+  String? _transientSemanticLabel() => switch (_value.state) {
+        ActionState.loading => widget.loadingText ?? 'Loading',
+        ActionState.success => widget.successText ?? 'Success',
+        ActionState.error => widget.errorText ?? 'Error',
+        ActionState.idle || ActionState.disabled => null,
+      };
+
+  // --- colours ----------------------------------------------------------
+
+  Color? _backgroundColor() {
+    final LoadingButtonStyle? style = widget.style;
+    final LoadingButtonColors colors = _effectiveColors;
+    final bool legacy =
+        _effectiveColorStrategy == LoadingButtonColorStrategy.legacy;
+    return switch (_value.state) {
+      ActionState.loading => style?.loadingBackgroundColor ??
+          colors.loading ??
+          style?.backgroundColor ??
+          (legacy ? Theme.of(context).primaryColor : null),
+      ActionState.success => style?.successBackgroundColor ?? colors.success,
+      ActionState.error => style?.errorBackgroundColor ?? colors.error,
+      ActionState.disabled => style?.disabledBackgroundColor,
+      ActionState.idle => style?.backgroundColor ??
+          (legacy ? Theme.of(context).primaryColor : null),
+    };
+  }
+
+  Color? _foregroundColor() {
+    final LoadingButtonStyle? style = widget.style;
+    final LoadingButtonColors colors = _effectiveColors;
+    final bool legacy =
+        _effectiveColorStrategy == LoadingButtonColorStrategy.legacy;
+    return switch (_value.state) {
+      ActionState.disabled => style?.disabledForegroundColor ??
+          (legacy ? Colors.grey.shade400 : null),
+      ActionState.loading => colors.onLoading ??
+          style?.foregroundColor ??
+          (legacy ? Colors.white : null),
+      ActionState.success => colors.onSuccess ??
+          style?.foregroundColor ??
+          (legacy ? Colors.white : null),
+      ActionState.error => colors.onError ??
+          style?.foregroundColor ??
+          (legacy ? Colors.white : null),
+      ActionState.idle =>
+        style?.foregroundColor ?? (legacy ? Colors.white : null),
+    };
+  }
+
+  // --- build ------------------------------------------------------------
+
+  bool get _isEnabled =>
+      widget.enabled &&
+      _value.state == ActionState.idle &&
+      widget.onPressed != null;
+
+  @override
+  Widget build(BuildContext context) {
+    Widget button = _buildButtonByType();
+
+    final double? progress = _effectiveProgress;
+    final LoadingProgressStyle progressStyle = _effectiveProgressStyle;
+    if (progress != null &&
+        _value.isLoading &&
+        progressStyle != LoadingProgressStyle.indicator) {
+      button = _withProgressFill(button, progress);
+    }
+
+    button = _applySizing(button);
+
+    if (widget.tooltip != null) {
+      button = Tooltip(message: widget.tooltip!, child: button);
+    }
+    return button;
+  }
+
+  /// Overlays a left-to-right fill, clipped to the button's own shape.
+  Widget _withProgressFill(Widget button, double progress) {
+    final Color? tint = _foregroundColor();
+    return Stack(
+      alignment: AlignmentDirectional.centerStart,
+      children: <Widget>[
+        button,
+        Positioned.fill(
+          child: IgnorePointer(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(_borderRadius),
+              child: Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: FractionallySizedBox(
+                  widthFactor: progress.clamp(0.0, 1.0),
+                  child: ColoredBox(
+                    color: (tint ?? Colors.white).withAlpha(48),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _applySizing(Widget button) {
+    final LoadingButtonSizing sizing = _effectiveSizing;
+    final double? width = widget.width;
+    final double? height = widget.height;
+
+    switch (sizing) {
+      case _IntrinsicSizing(constraints: final BoxConstraints? constraints):
+        Widget result = AnimatedSize(
+          duration: _effectiveAnimationDuration,
+          child: button,
+        );
+        if (width != null || height != null) {
+          result = SizedBox(width: width, height: height, child: result);
+        }
+        if (constraints != null) {
+          result = ConstrainedBox(constraints: constraints, child: result);
+        }
+        return result;
+      case _ExpandSizing(height: final double? modeHeight):
+        return SizedBox(
+          width: width ?? double.infinity,
+          height: height ?? modeHeight,
+          child: button,
+        );
+      case _FixedSizing(width: final double? w, height: final double? h):
+        return SizedBox(width: width ?? w, height: height ?? h, child: button);
+      case _LegacySizing():
+        // Pre-1.1.0 geometry, including the surprise tablet multiplier.
+        // `sizeOf` rather than `MediaQuery.of` so the button does not rebuild
+        // on every unrelated MediaQuery change.
+        final bool isTablet = MediaQuery.sizeOf(context).width > 600;
+        return SizedBox(
+          width: width ??
+              (isTablet ? _config.defaultWidth * 1.2 : _config.defaultWidth),
+          height: height ?? _config.defaultHeight,
+          child: button,
+        );
+    }
+  }
+
+  ButtonStyle _styleFrom({BorderSide? side}) {
+    final ButtonStyle resolved = ButtonStyle(
+      backgroundColor: _maybeColor(_backgroundColor()),
+      foregroundColor: _maybeColor(_foregroundColor()),
+      elevation: widget.style?.elevation == null
+          ? null
+          : WidgetStatePropertyAll<double>(widget.style!.elevation!),
+      shadowColor: _maybeColor(widget.style?.shadowColor),
+      padding: widget.style?.padding == null
+          ? null
+          : WidgetStatePropertyAll<EdgeInsetsGeometry>(widget.style!.padding!),
+      alignment: widget.style?.alignment,
+      textStyle: widget.style?.textStyle == null
+          ? null
+          : WidgetStatePropertyAll<TextStyle>(widget.style!.textStyle!),
+      side: side == null ? null : WidgetStatePropertyAll<BorderSide>(side),
+      shape: WidgetStatePropertyAll<OutlinedBorder>(
+        RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(_borderRadius),
+        ),
+      ),
+    );
+    return widget.buttonStyle?.merge(resolved) ?? resolved;
+  }
+
+  WidgetStateProperty<Color?>? _maybeColor(Color? color) =>
+      color == null ? null : WidgetStatePropertyAll<Color?>(color);
+
   Widget _buildButtonByType() {
-    final backgroundColor = _getBackgroundColor();
-    final foregroundColor = _getForegroundColor();
-    final isEnabled =
-        _currentState == ActionState.idle && widget.onPressed != null;
+    final VoidCallback? onPressed = _isEnabled ? press : null;
+    final Widget child = _buildChild();
 
     switch (widget.type) {
       case ButtonType.elevated:
         return ElevatedButton(
-          onPressed: isEnabled ? _handlePress : null,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: backgroundColor,
-            foregroundColor: foregroundColor,
-            elevation: widget.style?.elevation,
-            shadowColor: widget.style?.shadowColor,
-            padding: widget.style?.padding,
-            alignment: widget.style?.alignment,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(
-                widget.style?.borderRadius ?? _config.defaultBorderRadius,
-              ),
-            ),
-          ),
-          child: _buildChild(),
+          onPressed: onPressed,
+          focusNode: widget.focusNode,
+          autofocus: widget.autofocus,
+          style: _styleFrom(),
+          child: child,
         );
       case ButtonType.filled:
         return FilledButton(
-          onPressed: isEnabled ? _handlePress : null,
-          style: FilledButton.styleFrom(
-            backgroundColor: backgroundColor,
-            foregroundColor: foregroundColor,
-            padding: widget.style?.padding,
-            alignment: widget.style?.alignment,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(
-                widget.style?.borderRadius ?? _config.defaultBorderRadius,
-              ),
-            ),
-          ),
-          child: _buildChild(),
+          onPressed: onPressed,
+          focusNode: widget.focusNode,
+          autofocus: widget.autofocus,
+          style: _styleFrom(),
+          child: child,
         );
       case ButtonType.outlined:
         return OutlinedButton(
-          onPressed: isEnabled ? _handlePress : null,
-          style: OutlinedButton.styleFrom(
-            backgroundColor: backgroundColor,
-            foregroundColor: foregroundColor,
-            padding: widget.style?.padding,
-            alignment: widget.style?.alignment,
-            side: BorderSide(
-              color: widget.style?.borderColor ?? foregroundColor,
-              width: widget.style?.borderWidth ?? 1.0,
-            ),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(
-                widget.style?.borderRadius ?? _config.defaultBorderRadius,
-              ),
-            ),
+          onPressed: onPressed,
+          focusNode: widget.focusNode,
+          autofocus: widget.autofocus,
+          style: _styleFrom(
+            side: widget.style?.borderColor == null &&
+                    widget.style?.borderWidth == null
+                ? null
+                : BorderSide(
+                    color: widget.style?.borderColor ??
+                        _foregroundColor() ??
+                        Theme.of(context).colorScheme.outline,
+                    width: widget.style?.borderWidth ?? 1.0,
+                  ),
           ),
-          child: _buildChild(),
+          child: child,
         );
       case ButtonType.text:
         return TextButton(
-          onPressed: isEnabled ? _handlePress : null,
-          style: TextButton.styleFrom(
-            backgroundColor: backgroundColor,
-            foregroundColor: foregroundColor,
-            padding: widget.style?.padding,
-            alignment: widget.style?.alignment,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(
-                widget.style?.borderRadius ?? _config.defaultBorderRadius,
-              ),
-            ),
-          ),
-          child: _buildChild(),
+          onPressed: onPressed,
+          focusNode: widget.focusNode,
+          autofocus: widget.autofocus,
+          style: _styleFrom(),
+          child: child,
         );
       case ButtonType.icon:
         return IconButton(
-          onPressed: isEnabled ? _handlePress : null,
-          icon: _buildChild(),
+          onPressed: onPressed,
+          focusNode: widget.focusNode,
+          autofocus: widget.autofocus,
           iconSize: widget.style?.iconSize,
-          color: foregroundColor,
-          style: IconButton.styleFrom(
-            backgroundColor: backgroundColor,
-            padding: widget.style?.padding,
-          ),
+          color: _foregroundColor(),
+          style: _styleFrom(),
+          icon: child,
         );
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      enabled: _currentState == ActionState.idle && widget.onPressed != null,
-      label: _getSemanticLabel(),
-      child: _buildButton(),
-    );
-  }
-
-  String _getSemanticLabel() {
-    switch (_currentState) {
-      case ActionState.loading:
-        return widget.loadingText ?? 'Loading';
-      case ActionState.success:
-        return widget.successText ?? 'Success';
-      case ActionState.error:
-        return widget.errorText ?? 'Error';
-      case ActionState.disabled:
-        return 'Disabled';
-      case ActionState.idle:
-        return 'Button';
     }
   }
 }
