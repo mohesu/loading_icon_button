@@ -26,6 +26,7 @@ class FilledAutoLoadingButton extends StatefulWidget {
     this.clipBehavior = Clip.none,
     this.statesController,
     this.loadingIcon,
+    this.indicator,
     this.loadingLabel,
     this.switchDuration = kThemeAnimationDuration,
     required this.child,
@@ -44,6 +45,7 @@ class FilledAutoLoadingButton extends StatefulWidget {
     Clip? clipBehavior,
     this.statesController,
     this.loadingIcon,
+    this.indicator,
     this.loadingLabel,
     Duration? switchDuration,
     required Widget icon,
@@ -66,6 +68,7 @@ class FilledAutoLoadingButton extends StatefulWidget {
     this.clipBehavior = Clip.none,
     this.statesController,
     this.loadingIcon,
+    this.indicator,
     this.loadingLabel,
     this.switchDuration = kThemeAnimationDuration,
     required this.child,
@@ -84,6 +87,7 @@ class FilledAutoLoadingButton extends StatefulWidget {
     Clip? clipBehavior,
     this.statesController,
     this.loadingIcon,
+    this.indicator,
     this.loadingLabel,
     Duration? switchDuration,
     required Widget icon,
@@ -155,6 +159,11 @@ class FilledAutoLoadingButton extends StatefulWidget {
   /// The default implementation is [_LoadingChild]
   final Widget? loadingIcon;
 
+  /// What to show while loading. Overridden by [loadingIcon]; falls back to
+  /// [LoadingButtonThemeData.indicator] and then to a
+  /// [CircularProgressIndicator].
+  final LoadingIndicator? indicator;
+
   /// The prompt text displayed when the button is in the loading state
   ///
   /// The default is empty
@@ -195,6 +204,7 @@ class _FilledAutoLoadingButtonState
         clipBehavior: widget.clipBehavior,
         statesController: widget.statesController,
         loadingIcon: widget.loadingIcon,
+        indicator: widget.indicator,
         loadingLabel: widget.loadingLabel,
         loadingClickable: false,
         switchDuration: widget.switchDuration,
@@ -214,6 +224,7 @@ class _FilledAutoLoadingButtonState
       clipBehavior: widget.clipBehavior,
       statesController: widget.statesController,
       loadingIcon: widget.loadingIcon,
+      indicator: widget.indicator,
       loadingLabel: widget.loadingLabel,
       loadingClickable: false,
       switchDuration: widget.switchDuration,
@@ -248,6 +259,11 @@ class FilledLoadingButton extends FilledButton {
     super.clipBehavior = Clip.none,
     super.statesController,
     Widget? loadingIcon,
+
+    /// What to show while loading. Overridden by [loadingIcon]; falls back to
+    /// [LoadingButtonThemeData.indicator] and then to a
+    /// [CircularProgressIndicator].
+    LoadingIndicator? indicator,
     Widget? loadingLabel,
     bool loadingClickable = false,
     Duration switchDuration = kThemeAnimationDuration,
@@ -260,9 +276,9 @@ class FilledLoadingButton extends FilledButton {
             child: !isLoading
                 ? child
                 : loadingLabel == null
-                    ? loadingIcon ?? const _LoadingChild()
+                    ? _resolveLoadingIcon(loadingIcon, indicator)
                     : _ButtonWithIconChild(
-                        icon: loadingIcon ?? const _LoadingChild(),
+                        icon: _resolveLoadingIcon(loadingIcon, indicator),
                         label: loadingLabel,
                       ),
           ),
@@ -282,6 +298,11 @@ class FilledLoadingButton extends FilledButton {
     Clip? clipBehavior,
     super.statesController,
     Widget? loadingIcon,
+
+    /// What to show while loading. Overridden by [loadingIcon]; falls back to
+    /// [LoadingButtonThemeData.indicator] and then to a
+    /// [CircularProgressIndicator].
+    LoadingIndicator? indicator,
     Widget? loadingLabel,
     bool loadingClickable = false,
     Duration switchDuration = kThemeAnimationDuration,
@@ -297,9 +318,9 @@ class FilledLoadingButton extends FilledButton {
             child: !isLoading
                 ? _ButtonWithIconChild(icon: icon, label: label)
                 : loadingLabel == null
-                    ? loadingIcon ?? const _LoadingChild()
+                    ? _resolveLoadingIcon(loadingIcon, indicator)
                     : _ButtonWithIconChild(
-                        icon: loadingIcon ?? const _LoadingChild(),
+                        icon: _resolveLoadingIcon(loadingIcon, indicator),
                         label: loadingLabel,
                       ),
           ),
@@ -319,6 +340,11 @@ class FilledLoadingButton extends FilledButton {
     super.clipBehavior = Clip.none,
     super.statesController,
     Widget? loadingIcon,
+
+    /// What to show while loading. Overridden by [loadingIcon]; falls back to
+    /// [LoadingButtonThemeData.indicator] and then to a
+    /// [CircularProgressIndicator].
+    LoadingIndicator? indicator,
     Widget? loadingLabel,
     bool loadingClickable = false,
     Duration switchDuration = kThemeAnimationDuration,
@@ -331,9 +357,9 @@ class FilledLoadingButton extends FilledButton {
             child: !isLoading
                 ? child
                 : loadingLabel == null
-                    ? loadingIcon ?? const _LoadingChild()
+                    ? _resolveLoadingIcon(loadingIcon, indicator)
                     : _ButtonWithIconChild(
-                        icon: loadingIcon ?? const _LoadingChild(),
+                        icon: _resolveLoadingIcon(loadingIcon, indicator),
                         label: loadingLabel,
                       ),
           ),
@@ -353,6 +379,11 @@ class FilledLoadingButton extends FilledButton {
     Clip? clipBehavior,
     super.statesController,
     Widget? loadingIcon,
+
+    /// What to show while loading. Overridden by [loadingIcon]; falls back to
+    /// [LoadingButtonThemeData.indicator] and then to a
+    /// [CircularProgressIndicator].
+    LoadingIndicator? indicator,
     Widget? loadingLabel,
     bool loadingClickable = false,
     Duration switchDuration = kThemeAnimationDuration,
@@ -368,9 +399,9 @@ class FilledLoadingButton extends FilledButton {
             child: !isLoading
                 ? _ButtonWithIconChild(icon: icon, label: label)
                 : loadingLabel == null
-                    ? loadingIcon ?? const _LoadingChild()
+                    ? _resolveLoadingIcon(loadingIcon, indicator)
                     : _ButtonWithIconChild(
-                        icon: loadingIcon ?? const _LoadingChild(),
+                        icon: _resolveLoadingIcon(loadingIcon, indicator),
                         label: loadingLabel,
                       ),
           ),

@@ -33,6 +33,7 @@ class IconAutoLoadingButton extends StatefulWidget {
     this.selectedIcon,
     this.selectedLoadingIcon,
     this.loadingIcon,
+    this.indicator,
     required this.icon,
   })  : assert(splashRadius == null || splashRadius > 0),
         _variant = _IconButtonVariant.standard;
@@ -66,6 +67,7 @@ class IconAutoLoadingButton extends StatefulWidget {
     this.selectedIcon,
     this.selectedLoadingIcon,
     this.loadingIcon,
+    this.indicator,
     required this.icon,
   })  : assert(splashRadius == null || splashRadius > 0),
         _variant = _IconButtonVariant.filled;
@@ -101,6 +103,7 @@ class IconAutoLoadingButton extends StatefulWidget {
     this.selectedIcon,
     this.selectedLoadingIcon,
     this.loadingIcon,
+    this.indicator,
     required this.icon,
   })  : assert(splashRadius == null || splashRadius > 0),
         _variant = _IconButtonVariant.filledTonal;
@@ -135,6 +138,7 @@ class IconAutoLoadingButton extends StatefulWidget {
     this.selectedIcon,
     this.selectedLoadingIcon,
     this.loadingIcon,
+    this.indicator,
     required this.icon,
   })  : assert(splashRadius == null || splashRadius > 0),
         _variant = _IconButtonVariant.outlined;
@@ -405,6 +409,11 @@ class IconAutoLoadingButton extends StatefulWidget {
   /// The default implementation is [_LoadingChild]
   final Widget? loadingIcon;
 
+  /// What to show while loading. Overridden by [loadingIcon]; falls back to
+  /// [LoadingButtonThemeData.indicator] and then to a
+  /// [CircularProgressIndicator].
+  final LoadingIndicator? indicator;
+
   /// The icon to display inside the button.
   ///
   /// The [Icon.size] and [Icon.color] of the icon is configured automatically
@@ -436,8 +445,7 @@ class _IconAutoLoadingButtonState
     Widget? selectedIcon = widget.selectedIcon;
 
     if (_isLoading) {
-      icon = widget.loadingIcon ??
-          Builder(builder: (context) => const _LoadingChild());
+      icon = _resolveLoadingIcon(widget.loadingIcon, widget.indicator);
 
       if (selectedIcon != null) {
         selectedIcon = widget.selectedLoadingIcon ?? icon;

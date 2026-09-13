@@ -11,6 +11,11 @@ pubspec.lock
 # If you don't generate documentation locally you can remove this line.
 doc/api/
 
+# Coverage reports, written by `flutter test --coverage` (which CI runs on
+# every push). Never committed, never published.
+coverage/
+*.lcov
+
 # dotenv environment variables file
 .env*
 
@@ -25,3 +30,7 @@ doc/api/
 
 .flutter-plugins
 .flutter-plugins-dependencies
+
+# IntelliJ / Android Studio project metadata
+.idea/
+*.iml

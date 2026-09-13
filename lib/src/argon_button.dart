@@ -30,7 +30,7 @@ class ArgonButton extends StatefulWidget {
   final Widget child;
 
   /// Function to call on button pressed
-  final Function(
+  final void Function(
     Function startLoading,
     Function stopLoading,
     ArgonButtonState btnState,
@@ -152,6 +152,7 @@ class _ArgonButtonState extends State<ArgonButton>
   }
 
   void animateForward() {
+    if (!mounted) return;
     setState(() {
       btn = ArgonButtonState.busy;
     });
@@ -159,10 +160,15 @@ class _ArgonButtonState extends State<ArgonButton>
   }
 
   void animateReverse() {
+    if (!mounted) return;
     _controller.reverse();
   }
 
-  double? lerpWidth(a, b, t) {
+  /// Interpolates the button width between its full and collapsed sizes.
+  ///
+  /// A zero endpoint means "unconstrained", so null is returned and the
+  /// button is left to size itself.
+  double? lerpWidth(double a, double b, double t) {
     if (a == 0.0 || b == 0.0) {
       return null;
     } else {
@@ -190,7 +196,26 @@ class _ArgonButtonState extends State<ArgonButton>
     );
   }
 
+  /// Enters the loading state. Safe to call after the widget is gone.
+  void _startLoading() {
+    if (!mounted) return;
+    animateForward();
+  }
+
+  /// Leaves the loading state. Safe to call after the widget is gone.
+  ///
+  /// The callbacks handed to [ArgonButton.onTap] routinely outlive the button
+  /// — a network call completing after the user has navigated away is the
+  /// normal case — so both guard on `mounted` rather than driving a disposed
+  /// controller.
+  void _stopLoading() {
+    if (!mounted) return;
+    animateReverse();
+  }
+
   Widget buttonBody() {
+    final void Function(Function, Function, ArgonButtonState)? onTap =
+        widget.onTap;
     return SizedBox(
       height: widget.height,
       width: lerpWidth(widget.width, minWidth, _animation.value),
@@ -222,12 +247,16 @@ class _ArgonButtonState extends State<ArgonButton>
             disabledElevation: widget.disabledElevation,
             disabledColor: widget.disabledColor,
             disabledTextColor: widget.disabledTextColor,
-            onPressed: () {
-              widget.onTap!(
-                  () => animateForward(), () => animateReverse(), btn);
-              // btnClicked();
-            },
-            child: btn == ArgonButtonState.idle ? widget.child : widget.loader),
+            onPressed: onTap == null
+                ? null
+                : () => onTap(
+                      _startLoading,
+                      _stopLoading,
+                      btn,
+                    ),
+            child: btn == ArgonButtonState.idle
+                ? widget.child
+                : widget.loader ?? const _LoadingChild()),
       ),
     );
   }
@@ -237,12 +266,12 @@ class ArgonTimerButton extends StatefulWidget {
   final double height;
   final double width;
   final double minWidth;
-  final Function(int time)? loader;
+  final Widget Function(int time)? loader;
   final Duration animationDuration;
   final Curve curve;
   final Curve reverseCurve;
   final Widget child;
-  final Function(Function startTimer, ArgonButtonState? btnState)? onTap;
+  final void Function(Function startTimer, ArgonButtonState? btnState)? onTap;
   final Color? color;
   final Color? focusColor;
   final Color? hoverColor;
@@ -317,7 +346,7 @@ class _ArgonTimerButtonState extends State<ArgonTimerButton>
   ArgonButtonState? btn;
   int secondsLeft = 0;
   Timer? _timer;
-  Stream emptyStream = const Stream.empty();
+  final Stream<void> emptyStream = const Stream<void>.empty();
   double _minWidth = 0;
 
   @override
@@ -364,10 +393,15 @@ class _ArgonTimerButtonState extends State<ArgonTimerButton>
   }
 
   void animateReverse() {
+    if (!mounted) return;
     _controller.reverse();
   }
 
-  double? lerpWidth(a, b, t) {
+  /// Interpolates the button width between its full and collapsed sizes.
+  ///
+  /// A zero endpoint means "unconstrained", so null is returned and the
+  /// button is left to size itself.
+  double? lerpWidth(double a, double b, double t) {
     if (a == 0.0 || b == 0.0) {
       return null;
     } else {
@@ -386,8 +420,12 @@ class _ArgonTimerButtonState extends State<ArgonTimerButton>
   }
 
   void startTimer(int newTime) {
-    if (newTime == 0) {
-      throw ("Count Down Time can not be null");
+    if (newTime <= 0) {
+      throw ArgumentError.value(
+        newTime,
+        'newTime',
+        'Countdown duration must be greater than zero seconds',
+      );
     }
 
     animateForward();
@@ -400,7 +438,7 @@ class _ArgonTimerButtonState extends State<ArgonTimerButton>
       _timer!.cancel();
     }
 
-    var oneSec = const Duration(seconds: 1);
+    const oneSec = Duration(seconds: 1);
     _timer = Timer.periodic(
       oneSec,
       (Timer timer) => setState(
@@ -426,6 +464,7 @@ class _ArgonTimerButtonState extends State<ArgonTimerButton>
   }
 
   Widget buttonBody() {
+    final void Function(Function, ArgonButtonState?)? onTap = widget.onTap;
     return SizedBox(
       height: widget.height,
       width: lerpWidth(widget.width, minWidth, _animation.value),
@@ -456,9 +495,11 @@ class _ArgonTimerButtonState extends State<ArgonTimerButton>
           disabledElevation: widget.disabledElevation,
           disabledColor: widget.disabledColor,
           disabledTextColor: widget.disabledTextColor,
-          onPressed: () {
-            widget.onTap!((newCounter) => startTimer(newCounter), btn);
-          },
+          onPressed: onTap == null
+              ? null
+              : () => onTap((int newCounter) {
+                    if (mounted) startTimer(newCounter);
+                  }, btn),
           child: btn == ArgonButtonState.idle
               ? widget.child
               : StreamBuilder(
@@ -467,7 +508,8 @@ class _ArgonTimerButtonState extends State<ArgonTimerButton>
                     if (secondsLeft == 0) {
                       animateReverse();
                     }
-                    return widget.loader!(secondsLeft);
+                    return widget.loader?.call(secondsLeft) ??
+                        const _LoadingChild();
                   },
                 ),
         ),

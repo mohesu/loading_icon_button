@@ -1,0 +1,157 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  format:
+    name: format (${{ matrix.channel }})
+    runs-on: ubuntu-latest
+    # An unreleased framework must never be able to block a PR. `dart format`
+    # output changes between formatter versions, so beta is advisory only.
+    continue-on-error: ${{ matrix.channel == 'beta' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        channel: [stable, beta]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: ${{ matrix.channel }}
+          cache: true
+      # `dart format` picks its style from the package's resolved language
+      # version, so it MUST run after `pub get`. Without resolution it falls
+      # back to the SDK's own version and reformats the entire tree in the
+      # newer style, failing the check on code that is correctly formatted.
+      - name: Resolve package dependencies
+        run: flutter pub get
+      - name: Resolve example dependencies
+        run: flutter pub get
+        working-directory: example
+      - name: Check formatting
+        run: dart format --output none --set-exit-if-changed .
+
+  analyze:
+    name: analyze (${{ matrix.channel }})
+    runs-on: ubuntu-latest
+    continue-on-error: ${{ matrix.channel == 'beta' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        channel: [stable, beta]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: ${{ matrix.channel }}
+          cache: true
+      - name: Resolve package dependencies
+        run: flutter pub get
+      # `flutter analyze` walks the whole tree, example/ included, so the
+      # example has to be resolved too or every package: URI in it fails.
+      - name: Resolve example dependencies
+        run: flutter pub get
+        working-directory: example
+      - name: Analyze
+        run: flutter analyze --fatal-infos
+
+  test:
+    name: test (${{ matrix.channel }})
+    runs-on: ubuntu-latest
+    continue-on-error: ${{ matrix.channel == 'beta' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        channel: [stable, beta]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: ${{ matrix.channel }}
+          cache: true
+      - name: Resolve package dependencies
+        run: flutter pub get
+      - name: Run tests
+        run: flutter test --coverage
+      - name: Upload coverage
+        if: matrix.channel == 'stable'
+        uses: actions/upload-artifact@v4
+        with:
+          name: lcov
+          path: coverage/lcov.info
+          if-no-files-found: error
+
+  example:
+    name: example build (${{ matrix.channel }})
+    runs-on: ubuntu-latest
+    continue-on-error: ${{ matrix.channel == 'beta' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        channel: [stable, beta]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: ${{ matrix.channel }}
+          cache: true
+      # example/ carries lib/, test/ and pubspec.yaml only — the platform
+      # scaffolding is deliberately not checked in (see .pubignore), so it is
+      # regenerated here from the pinned Flutter version.
+      - name: Generate platform scaffolding
+        run: flutter create . --platforms=web
+        working-directory: example
+      - name: Resolve example dependencies
+        run: flutter pub get
+        working-directory: example
+      - name: Build example for web
+        run: flutter build web --release
+        working-directory: example
+
+  pana:
+    name: pana score
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Resolve package dependencies
+        run: flutter pub get
+      # pana validates `screenshots:` by converting them with libwebp
+      # (webpinfo / cwebp / dwebp / gif2webp / webpmux). pub.dev's own analysis
+      # environment has these; a bare runner does not, and every screenshot
+      # then fails with "No such file or directory", costing the 10 example and
+      # screenshot points and making the score unrepresentative.
+      - name: Install libwebp
+        run: sudo apt-get update && sudo apt-get install -y webp
+      - name: Install pana
+        run: dart pub global activate pana
+      - name: Score the package
+        # The package scores 160/160 today, so any lost point is a regression.
+        run: dart pub global run pana --no-warning --exit-code-threshold 0 .
+
+  publish-dry-run:
+    name: publish --dry-run
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Resolve package dependencies
+        run: flutter pub get
+      - name: Validate the publishable archive
+        run: flutter pub publish --dry-run
